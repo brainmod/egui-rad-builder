@@ -12,25 +12,33 @@
 
 ## Recent Changes (2025-12-26)
 
-### New Widgets Added (5 new types)
+### New Widgets Added (8 new types, 27 total)
 - **TextArea** - Multi-line text editing
 - **DragValue** - Compact numeric input with drag-to-adjust
 - **Spinner** - Loading/progress indicator
 - **ColorPicker** - RGBA color selection with picker UI
 - **Code** - Code editor with monospace font and syntax styling
+- **Heading** - Large heading text
+- **Image** - Image placeholder with URI (generates egui::Image code)
+- **Placeholder** - Colored rectangle for layout mockups
 
 ### Keyboard Shortcuts Implemented
 | Shortcut | Action |
 |----------|--------|
+| `Arrow Keys` | Nudge selected widget by grid size |
 | `Delete` / `Backspace` | Delete selected widget |
 | `Ctrl+C` | Copy selected widget |
 | `Ctrl+V` | Paste widget |
 | `Ctrl+D` | Duplicate selected widget |
+| `]` | Bring widget to front (z-order) |
+| `[` | Send widget to back (z-order) |
 | `Ctrl+G` | Generate code |
 
 ### UX Improvements
 - Widget clipboard for copy/paste operations
-- Updated Tips panel with shortcuts reference
+- Arrow key nudging respects grid size
+- Z-order controls for widget layering
+- Updated shortcuts panel in palette
 
 ---
 
@@ -56,13 +64,15 @@ The codebase follows an MVC-style architecture:
 - **View:** GUI rendering in `preview_panels_ui()`, `draw_widget()`, palette/inspector UI
 - **Controller:** Event handling and state management in `RadBuilderApp`
 
-### Supported Widgets (24 types)
+### Supported Widgets (27 types)
 
-**Basic:** Label, Button, ImageTextButton, Checkbox, Link, Hyperlink, SelectableLabel, Separator
+**Basic:** Label, Heading, Button, ImageTextButton, Checkbox, Link, Hyperlink, SelectableLabel, Separator
 
 **Input:** TextEdit, TextArea, Password, Slider, DragValue, ComboBox, RadioGroup, DatePicker, AngleSelector, ColorPicker
 
-**Advanced:** MenuButton, CollapsingHeader, Tree, ProgressBar, Spinner, Code
+**Display:** Image, Placeholder, Spinner, ProgressBar
+
+**Advanced:** MenuButton, CollapsingHeader, Tree, Code
 
 ---
 
@@ -212,16 +222,17 @@ struct WidgetRegistry {
 ```
 
 #### 9. Keyboard Shortcuts ✅ IMPLEMENTED
-Basic shortcuts now available:
+All basic shortcuts now available:
 - `Delete` - Delete selected widget
 - `Ctrl+C/V` - Copy/paste widget
 - `Ctrl+D` - Duplicate widget
 - `Ctrl+G` - Generate code
+- `Arrow keys` - Nudge selected widget
+- `] / [` - Z-order controls
 
 **Still needed:**
 - `Ctrl+Z/Y` - Undo/redo
 - `Ctrl+S` - Save project
-- Arrow keys - Nudge selected widget
 
 #### 10. Widget Alignment Tools
 **Problem:** No way to align multiple widgets.
@@ -232,14 +243,10 @@ Basic shortcuts now available:
 - Distribute horizontally/vertically
 - Match widths/heights
 
-#### 11. Z-Order Controls
-**Problem:** No way to change widget stacking order.
-
-**Solution:** Add to inspector or context menu:
-- Bring to Front
-- Send to Back
-- Bring Forward
-- Send Backward
+#### 11. Z-Order Controls ✅ IMPLEMENTED
+Now available via keyboard:
+- `]` - Bring to Front
+- `[` - Send to Back
 
 ### Lower Priority (Future Enhancements)
 
@@ -253,10 +260,9 @@ Allow designing multiple screens/views that can be navigated between.
 - Export theme as separate struct
 
 #### 14. Additional Widgets (from TODO)
-**Added:** TextArea, DragValue, Spinner, ColorPicker, Code
+**Added:** TextArea, DragValue, Spinner, ColorPicker, Code, Heading, Image, Placeholder
 
 **Still needed:**
-- Image widget (with image picker)
 - Table/Grid widget
 - Plot/Chart widget (egui_plot integration)
 - Modal dialog / Window

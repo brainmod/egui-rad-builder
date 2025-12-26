@@ -53,6 +53,7 @@ pub(crate) struct Widget {
 pub(crate) enum WidgetKind {
     MenuButton,
     Label,
+    Heading,
     Button,
     ImageTextButton,
     Checkbox,
@@ -75,6 +76,8 @@ pub(crate) enum WidgetKind {
     Spinner,
     ColorPicker,
     Code,
+    Image,
+    Placeholder,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

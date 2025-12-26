@@ -300,6 +300,29 @@ impl RadBuilderApp {
                     ..Default::default()
                 },
             ),
+            WidgetKind::Heading => (
+                vec2(200.0, 32.0),
+                WidgetProps {
+                    text: "Heading".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Image => (
+                vec2(150.0, 150.0),
+                WidgetProps {
+                    text: "image.png".into(),
+                    url: "file://image.png".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Placeholder => (
+                vec2(200.0, 100.0),
+                WidgetProps {
+                    text: "Placeholder".into(),
+                    color: [128, 128, 128, 128],
+                    ..Default::default()
+                },
+            ),
         };
 
         let vecpos = at_global - area_origin - size * 0.5; // local to area
@@ -473,6 +496,9 @@ impl RadBuilderApp {
                         WidgetKind::Spinner => vec2(32.0, 32.0),
                         WidgetKind::ColorPicker => vec2(200.0, 28.0),
                         WidgetKind::Code => vec2(300.0, 150.0),
+                        WidgetKind::Heading => vec2(200.0, 32.0),
+                        WidgetKind::Image => vec2(150.0, 150.0),
+                        WidgetKind::Placeholder => vec2(200.0, 100.0),
                     };
                     let ghost = egui::Rect::from_center_size(mouse, ghost_size);
                     let layer = egui::LayerId::new(egui::Order::Tooltip, Id::new("ghost"));
@@ -815,6 +841,37 @@ impl RadBuilderApp {
                         });
                     w.props.text = buf;
                 }
+                WidgetKind::Heading => {
+                    ui.heading(&w.props.text);
+                }
+                WidgetKind::Image => {
+                    // Show placeholder with image info
+                    let color = Color32::from_rgba_unmultiplied(80, 80, 80, 200);
+                    egui::Frame::NONE
+                        .fill(color)
+                        .stroke(Stroke::new(1.0, Color32::GRAY))
+                        .show(ui, |ui| {
+                            ui.set_min_size(w.size);
+                            ui.centered_and_justified(|ui| {
+                                ui.label(format!("🖼 {}\n{}x{}", w.props.text, w.size.x as i32, w.size.y as i32));
+                            });
+                        });
+                }
+                WidgetKind::Placeholder => {
+                    let color = Color32::from_rgba_unmultiplied(
+                        w.props.color[0], w.props.color[1], w.props.color[2], w.props.color[3]
+                    );
+                    egui::Frame::NONE
+                        .fill(color)
+                        .stroke(Stroke::new(1.0, Color32::GRAY))
+                        .corner_radius(4.0)
+                        .show(ui, |ui| {
+                            ui.set_min_size(w.size);
+                            ui.centered_and_justified(|ui| {
+                                ui.label(&w.props.text);
+                            });
+                        });
+                }
             }
         });
         let is_edit_mode = ui
@@ -928,6 +985,11 @@ impl RadBuilderApp {
         self.palette_item(ui, "Password", WidgetKind::Password);
         self.palette_item(ui, "Tree", WidgetKind::Tree);
         ui.separator();
+        ui.small("Display");
+        self.palette_item(ui, "Heading", WidgetKind::Heading);
+        self.palette_item(ui, "Image", WidgetKind::Image);
+        self.palette_item(ui, "Placeholder", WidgetKind::Placeholder);
+        ui.separator();
         ui.small("Advanced");
         self.palette_item(ui, "Text Area", WidgetKind::TextArea);
         self.palette_item(ui, "Drag Value", WidgetKind::DragValue);
@@ -938,7 +1000,7 @@ impl RadBuilderApp {
         ui.separator();
         ui.label("Shortcuts:");
         ui.small(
-            "• Delete: remove widget\n• Ctrl+C/V: copy/paste\n• Ctrl+D: duplicate\n• Ctrl+G: generate code",
+            "• Arrows: nudge widget\n• Delete: remove\n• Ctrl+C/V: copy/paste\n• Ctrl+D: duplicate\n• ] / [: z-order\n• Ctrl+G: generate",
         );
     }
 
@@ -958,6 +1020,7 @@ impl RadBuilderApp {
             ui.add_space(6.0);
             match w.kind {
                 WidgetKind::Label
+                | WidgetKind::Heading
                 | WidgetKind::Button
                 | WidgetKind::ImageTextButton
                 | WidgetKind::TextEdit
@@ -971,7 +1034,8 @@ impl RadBuilderApp {
                 | WidgetKind::AngleSelector
                 | WidgetKind::DatePicker
                 | WidgetKind::DragValue
-                | WidgetKind::ColorPicker => {
+                | WidgetKind::ColorPicker
+                | WidgetKind::Placeholder => {
                     ui.label("Text");
                     ui.text_edit_singleline(&mut w.props.text);
                 }
@@ -992,6 +1056,12 @@ impl RadBuilderApp {
                             .desired_rows(6)
                             .desired_width(f32::INFINITY),
                     );
+                }
+                WidgetKind::Image => {
+                    ui.label("Filename");
+                    ui.text_edit_singleline(&mut w.props.text);
+                    ui.label("URI");
+                    ui.text_edit_singleline(&mut w.props.url);
                 }
             }
             match w.kind {
@@ -1084,7 +1154,7 @@ impl RadBuilderApp {
                     ui.add(egui::Slider::new(&mut w.props.min, -1000.0..=w.props.max).text("min"));
                     ui.add(egui::Slider::new(&mut w.props.max, w.props.min..=1000.0).text("max"));
                 }
-                WidgetKind::ColorPicker => {
+                WidgetKind::ColorPicker | WidgetKind::Placeholder => {
                     let mut color = Color32::from_rgba_unmultiplied(
                         w.props.color[0],
                         w.props.color[1],
@@ -1783,6 +1853,50 @@ impl RadBuilderApp {
                         id = w.id,
                     ));
                 }
+                WidgetKind::Heading => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.heading(\"{text}\"); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        text = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::Image => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.add(egui::Image::new(\"{uri}\").fit_to_exact_size(egui::vec2({w:.1},{h:.1}))); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        uri = escape(&w.props.url),
+                    ));
+                }
+                WidgetKind::Placeholder => {
+                    let c = w.props.color;
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            egui::Frame::NONE.fill(egui::Color32::from_rgba_unmultiplied({r},{g},{b},{a})).corner_radius(4.0).show(ui, |ui| {{ \
+                                ui.set_min_size(egui::vec2({w:.1},{h:.1})); \
+                                ui.centered_and_justified(|ui| ui.label(\"{text}\")); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        r = c[0], g = c[1], b = c[2], a = c[3],
+                        text = escape(&w.props.text),
+                    ));
+                }
             }
         };
 
@@ -1889,13 +2003,25 @@ impl RadBuilderApp {
 impl eframe::App for RadBuilderApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Keyboard shortcuts - check input first, then apply changes
-        let (delete_pressed, duplicate_pressed, generate_pressed, copy_pressed, paste_pressed) = ctx.input(|i| {
+        let (
+            delete_pressed, duplicate_pressed, generate_pressed, copy_pressed, paste_pressed,
+            arrow_up, arrow_down, arrow_left, arrow_right,
+            bring_front, send_back
+        ) = ctx.input(|i| {
             let del = i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace);
             let dup = i.modifiers.command && i.key_pressed(egui::Key::D);
             let gencode = i.modifiers.command && i.key_pressed(egui::Key::G);
             let copy = i.modifiers.command && i.key_pressed(egui::Key::C);
             let paste = i.modifiers.command && i.key_pressed(egui::Key::V);
-            (del, dup, gencode, copy, paste)
+            // Arrow keys for nudging
+            let up = i.key_pressed(egui::Key::ArrowUp);
+            let down = i.key_pressed(egui::Key::ArrowDown);
+            let left = i.key_pressed(egui::Key::ArrowLeft);
+            let right = i.key_pressed(egui::Key::ArrowRight);
+            // Z-order: ] = bring to front, [ = send to back
+            let front = i.key_pressed(egui::Key::CloseBracket);
+            let back = i.key_pressed(egui::Key::OpenBracket);
+            (del, dup, gencode, copy, paste, up, down, left, right, front, back)
         });
 
         // Delete selected widget
@@ -1903,6 +2029,38 @@ impl eframe::App for RadBuilderApp {
             if let Some(id) = self.selected {
                 self.project.widgets.retain(|w| w.id != id);
                 self.selected = None;
+            }
+        }
+
+        // Arrow keys: Nudge selected widget
+        if let Some(sel_id) = self.selected {
+            let nudge = self.grid_size.max(1.0);
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == sel_id) {
+                if arrow_up { w.pos.y -= nudge; }
+                if arrow_down { w.pos.y += nudge; }
+                if arrow_left { w.pos.x -= nudge; }
+                if arrow_right { w.pos.x += nudge; }
+                // Clamp position
+                w.pos.x = w.pos.x.max(0.0);
+                w.pos.y = w.pos.y.max(0.0);
+            }
+        }
+
+        // Z-order controls
+        if bring_front {
+            if let Some(sel_id) = self.selected {
+                let max_z = self.project.widgets.iter().map(|w| w.z).max().unwrap_or(0);
+                if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == sel_id) {
+                    w.z = max_z + 1;
+                }
+            }
+        }
+        if send_back {
+            if let Some(sel_id) = self.selected {
+                let min_z = self.project.widgets.iter().map(|w| w.z).min().unwrap_or(0);
+                if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == sel_id) {
+                    w.z = min_z - 1;
+                }
             }
         }
 
