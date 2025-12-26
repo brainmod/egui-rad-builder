@@ -37,6 +37,45 @@ impl Default for DockArea {
     }
 }
 
+/// Widget categories for palette organization (Mobius-ECS inspired)
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum WidgetCategory {
+    Basic,
+    Input,
+    Display,
+    Containers,
+    Advanced,
+}
+
+impl WidgetCategory {
+    /// Returns all categories in display order
+    pub const fn all() -> &'static [WidgetCategory] {
+        &[
+            WidgetCategory::Basic,
+            WidgetCategory::Input,
+            WidgetCategory::Display,
+            WidgetCategory::Containers,
+            WidgetCategory::Advanced,
+        ]
+    }
+
+    /// Returns the display name for this category
+    pub const fn display_name(&self) -> &'static str {
+        match self {
+            WidgetCategory::Basic => "Basic",
+            WidgetCategory::Input => "Input",
+            WidgetCategory::Display => "Display",
+            WidgetCategory::Containers => "Containers",
+            WidgetCategory::Advanced => "Advanced",
+        }
+    }
+
+    /// Returns whether this category should be open by default in the palette
+    pub const fn default_open(&self) -> bool {
+        !matches!(self, WidgetCategory::Advanced)
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct Widget {
     pub(crate) id: WidgetId,
@@ -48,7 +87,7 @@ pub(crate) struct Widget {
     pub(crate) props: WidgetProps,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "t", content = "c")]
 pub(crate) enum WidgetKind {
     MenuButton,
@@ -88,6 +127,142 @@ pub(crate) enum WidgetKind {
 }
 
 impl WidgetKind {
+    /// Returns the category this widget belongs to (for palette organization)
+    pub const fn category(&self) -> WidgetCategory {
+        match self {
+            // Basic: simple display and interaction elements
+            WidgetKind::Label
+            | WidgetKind::Button
+            | WidgetKind::ImageTextButton
+            | WidgetKind::Checkbox
+            | WidgetKind::Link
+            | WidgetKind::Hyperlink
+            | WidgetKind::SelectableLabel
+            | WidgetKind::Separator => WidgetCategory::Basic,
+
+            // Input: user data entry widgets
+            WidgetKind::TextEdit
+            | WidgetKind::TextArea
+            | WidgetKind::Password
+            | WidgetKind::Slider
+            | WidgetKind::DragValue
+            | WidgetKind::ComboBox
+            | WidgetKind::RadioGroup
+            | WidgetKind::DatePicker
+            | WidgetKind::AngleSelector
+            | WidgetKind::ColorPicker => WidgetCategory::Input,
+
+            // Display: output and feedback widgets
+            WidgetKind::Heading
+            | WidgetKind::Small
+            | WidgetKind::Monospace
+            | WidgetKind::ProgressBar
+            | WidgetKind::Spinner
+            | WidgetKind::Image
+            | WidgetKind::Placeholder => WidgetCategory::Display,
+
+            // Containers: layout and grouping widgets
+            WidgetKind::Group
+            | WidgetKind::ScrollBox
+            | WidgetKind::Columns
+            | WidgetKind::TabBar
+            | WidgetKind::Window
+            | WidgetKind::CollapsingHeader => WidgetCategory::Containers,
+
+            // Advanced: complex or specialized widgets
+            WidgetKind::MenuButton | WidgetKind::Tree | WidgetKind::Code => WidgetCategory::Advanced,
+        }
+    }
+
+    /// Returns the display name for this widget kind (used in palette)
+    pub const fn display_name(&self) -> &'static str {
+        match self {
+            WidgetKind::MenuButton => "Menu Button",
+            WidgetKind::Label => "Label",
+            WidgetKind::Heading => "Heading",
+            WidgetKind::Small => "Small",
+            WidgetKind::Monospace => "Monospace",
+            WidgetKind::Button => "Button",
+            WidgetKind::ImageTextButton => "Image + Text Button",
+            WidgetKind::Checkbox => "Checkbox",
+            WidgetKind::TextEdit => "TextEdit",
+            WidgetKind::TextArea => "Text Area",
+            WidgetKind::Slider => "Slider",
+            WidgetKind::ProgressBar => "ProgressBar",
+            WidgetKind::RadioGroup => "Radio Group",
+            WidgetKind::Link => "Link",
+            WidgetKind::Hyperlink => "Hyperlink",
+            WidgetKind::SelectableLabel => "Selectable Label",
+            WidgetKind::ComboBox => "Combo Box",
+            WidgetKind::Separator => "Separator",
+            WidgetKind::CollapsingHeader => "Collapsing Header",
+            WidgetKind::DatePicker => "Date Picker",
+            WidgetKind::AngleSelector => "Angle Selector",
+            WidgetKind::Password => "Password",
+            WidgetKind::Tree => "Tree",
+            WidgetKind::DragValue => "Drag Value",
+            WidgetKind::Spinner => "Spinner",
+            WidgetKind::ColorPicker => "Color Picker",
+            WidgetKind::Code => "Code Editor",
+            WidgetKind::Image => "Image",
+            WidgetKind::Placeholder => "Placeholder",
+            WidgetKind::Group => "Group",
+            WidgetKind::ScrollBox => "Scroll Box",
+            WidgetKind::TabBar => "Tab Bar",
+            WidgetKind::Columns => "Columns",
+            WidgetKind::Window => "Window",
+        }
+    }
+
+    /// Returns all widget kinds in a given category
+    pub fn widgets_in_category(category: WidgetCategory) -> Vec<WidgetKind> {
+        Self::all()
+            .iter()
+            .filter(|k| k.category() == category)
+            .copied()
+            .collect()
+    }
+
+    /// Returns all widget kinds
+    pub const fn all() -> &'static [WidgetKind] {
+        &[
+            WidgetKind::Label,
+            WidgetKind::Button,
+            WidgetKind::ImageTextButton,
+            WidgetKind::Checkbox,
+            WidgetKind::Link,
+            WidgetKind::Hyperlink,
+            WidgetKind::SelectableLabel,
+            WidgetKind::Separator,
+            WidgetKind::TextEdit,
+            WidgetKind::TextArea,
+            WidgetKind::Password,
+            WidgetKind::Slider,
+            WidgetKind::DragValue,
+            WidgetKind::ComboBox,
+            WidgetKind::RadioGroup,
+            WidgetKind::DatePicker,
+            WidgetKind::AngleSelector,
+            WidgetKind::ColorPicker,
+            WidgetKind::Heading,
+            WidgetKind::Small,
+            WidgetKind::Monospace,
+            WidgetKind::ProgressBar,
+            WidgetKind::Spinner,
+            WidgetKind::Image,
+            WidgetKind::Placeholder,
+            WidgetKind::Group,
+            WidgetKind::ScrollBox,
+            WidgetKind::Columns,
+            WidgetKind::TabBar,
+            WidgetKind::Window,
+            WidgetKind::CollapsingHeader,
+            WidgetKind::MenuButton,
+            WidgetKind::Tree,
+            WidgetKind::Code,
+        ]
+    }
+
     /// Returns the default size for a widget of this kind.
     /// Centralized to avoid duplication between spawn_widget and ghost preview.
     pub fn default_size(&self) -> egui::Vec2 {
@@ -488,5 +663,57 @@ mod tests {
     fn test_widget_id_z_order() {
         let id = WidgetId::new(100);
         assert_eq!(id.as_z(), 100);
+    }
+
+    #[test]
+    fn test_widget_category_all() {
+        // All categories should be present
+        let categories = WidgetCategory::all();
+        assert_eq!(categories.len(), 5);
+        assert!(categories.contains(&WidgetCategory::Basic));
+        assert!(categories.contains(&WidgetCategory::Input));
+        assert!(categories.contains(&WidgetCategory::Display));
+        assert!(categories.contains(&WidgetCategory::Containers));
+        assert!(categories.contains(&WidgetCategory::Advanced));
+    }
+
+    #[test]
+    fn test_widget_kind_categories() {
+        // Test a few widgets are in correct categories
+        assert_eq!(WidgetKind::Label.category(), WidgetCategory::Basic);
+        assert_eq!(WidgetKind::Button.category(), WidgetCategory::Basic);
+        assert_eq!(WidgetKind::TextEdit.category(), WidgetCategory::Input);
+        assert_eq!(WidgetKind::Slider.category(), WidgetCategory::Input);
+        assert_eq!(WidgetKind::ProgressBar.category(), WidgetCategory::Display);
+        assert_eq!(WidgetKind::Group.category(), WidgetCategory::Containers);
+        assert_eq!(WidgetKind::Tree.category(), WidgetCategory::Advanced);
+    }
+
+    #[test]
+    fn test_widget_kind_all_have_categories() {
+        // All widgets should have a valid category
+        for kind in WidgetKind::all() {
+            let _category = kind.category(); // Should not panic
+            let _name = kind.display_name(); // Should not panic
+        }
+    }
+
+    #[test]
+    fn test_widget_kind_display_names() {
+        assert_eq!(WidgetKind::Label.display_name(), "Label");
+        assert_eq!(WidgetKind::ImageTextButton.display_name(), "Image + Text Button");
+        assert_eq!(WidgetKind::CollapsingHeader.display_name(), "Collapsing Header");
+    }
+
+    #[test]
+    fn test_widgets_in_category() {
+        let basic_widgets = WidgetKind::widgets_in_category(WidgetCategory::Basic);
+        assert!(basic_widgets.contains(&WidgetKind::Label));
+        assert!(basic_widgets.contains(&WidgetKind::Button));
+        assert!(!basic_widgets.contains(&WidgetKind::TextEdit)); // Input, not Basic
+
+        let input_widgets = WidgetKind::widgets_in_category(WidgetCategory::Input);
+        assert!(input_widgets.contains(&WidgetKind::TextEdit));
+        assert!(input_widgets.contains(&WidgetKind::Slider));
     }
 }
