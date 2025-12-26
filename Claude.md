@@ -45,9 +45,9 @@
 - Widget clipboard for copy/paste operations
 - Arrow key nudging respects grid size
 - Z-order controls for widget layering
-- Updated shortcuts panel in palette
 - Tooltip property available for all widgets
 - Group containers support horizontal/vertical layout toggle
+- Scrollable palette with collapsible widget categories (Basic, Input, Display, Containers, Advanced)
 
 ---
 
@@ -348,9 +348,9 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 1. ~~Add keyboard shortcuts~~ ✅
 2. ~~Add widget copy/paste~~ ✅
 3. ~~Z-order controls~~ ✅
-4. Implement undo/redo
-5. Add native file save/load
-6. Improved palette (scrollable, collapsible categories)
+4. ~~Improved palette (scrollable, collapsible categories)~~ ✅
+5. Implement undo/redo
+6. Add native file save/load
 7. Add error handling with user feedback
 
 ### Phase 3: Alignment & Selection *(Top Priority from Issue #15)*
