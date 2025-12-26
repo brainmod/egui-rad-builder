@@ -290,6 +290,8 @@ Toggle between edit mode (current) and preview mode (interact with widgets witho
 - Option to generate separate files (state.rs, ui.rs, main.rs)
 - Generate event handlers as closures
 - Add comments explaining generated code
+- **Real-time code generation** while placing components (from Issue #15)
+- Syntax highlighting in code preview
 
 #### 17. Project Templates
 Starter templates:
@@ -297,6 +299,40 @@ Starter templates:
 - Login form
 - Dashboard layout
 - Wizard/multi-step form
+
+#### 18. Improved Palette UX
+**Problem:** With 34+ widgets, the palette can overflow the available space and is hard to navigate.
+
+**Solution:**
+- Wrap palette contents in a ScrollArea
+- Make widget categories collapsible (CollapsingHeader for each section)
+- Consider search/filter functionality for quick widget finding
+
+---
+
+## Community Feedback (GitHub Issue #15)
+
+Discussion with saturn77 (mobius-designer) identified shared priorities and integration opportunities:
+
+### Top Priorities (saturn77)
+1. **Alignment Features** - Horizontal and vertical alignment with spacing controls
+2. **Core UI Elements** - Buttons, radio boxes, checkboxes, and plotting elements ✅ (mostly implemented)
+3. **Real-time Code Generation** - Live code generation while placing components with syntax highlighting
+
+### Secondary Requirements
+- Project scaffolding and skeleton generation
+- UI element styling capabilities
+- Syntax highlighting as "a significant stylistic effect"
+
+### Integration Architecture (saturn77)
+Leverage `egui_dock` as an application template layer where generated RAD windows integrate into a larger framework, promoting modular design patterns.
+
+### Desired Features (timschmidt)
+- **Ingest existing Rust/egui code** - Parse and edit existing UI code
+- **Group selection and distribution** - Align, distribute, match sizes
+- **Multi-page/multi-screen support** - Design multiple views with navigation
+- **Modal support** - Dialog windows and popups ✅ (Window widget added)
+- **egui_dock integration** - Modular window-based architecture
 
 ---
 
@@ -308,27 +344,39 @@ Starter templates:
 3. Add basic unit tests
 4. Set up GitHub Actions CI
 
-### Phase 2: Core UX Improvements
+### Phase 2: Core UX Improvements *(High Priority from Issue #15)*
 1. ~~Add keyboard shortcuts~~ ✅
 2. ~~Add widget copy/paste~~ ✅
-3. Implement undo/redo
-4. Add native file save/load
-5. Add error handling with user feedback
+3. ~~Z-order controls~~ ✅
+4. Implement undo/redo
+5. Add native file save/load
+6. Improved palette (scrollable, collapsible categories)
+7. Add error handling with user feedback
 
-### Phase 3: Enhanced Editing
-1. Multi-select and alignment tools
-2. Z-order controls
-3. Widget registry system
-4. Live preview mode
+### Phase 3: Alignment & Selection *(Top Priority from Issue #15)*
+1. Multi-select widgets (Shift+click, drag box)
+2. Alignment tools (left/center/right, top/middle/bottom)
+3. Distribution tools (horizontal/vertical spacing)
+4. Match sizes (width/height)
+5. Group/ungroup widgets
 
-### Phase 4: Expanded Features
-1. Multi-page/screen support
-2. Theming and styling options
-3. Additional widget types
-4. Improved code generation
+### Phase 4: Code Generation *(Priority from Issue #15)*
+1. Real-time code generation while placing components
+2. Syntax highlighting in code preview (egui_syntax_highlighting or syntect)
+3. Generate idiomatic Rust code
+4. Option to generate separate files (state.rs, ui.rs, main.rs)
+5. Project scaffolding/skeleton generation
 
-### Phase 5: Polish
-1. Project templates
+### Phase 5: Advanced Features
+1. Multi-page/screen support with navigation
+2. Plot/Chart widget (egui_plot integration)
+3. `egui_dock` integration for modular architecture
+4. Ingest and edit existing Rust/egui code
+5. Theming and styling options
+6. Live preview mode
+
+### Phase 6: Polish
+1. Project templates (settings dialog, login form, dashboard)
 2. Documentation and tutorials
 3. Performance optimization
 4. Accessibility improvements
