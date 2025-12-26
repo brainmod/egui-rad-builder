@@ -12,7 +12,7 @@
 
 ## Recent Changes (2025-12-26)
 
-### New Widgets Added (8 new types, 27 total)
+### New Widgets Added (10 new types, 29 total)
 - **TextArea** - Multi-line text editing
 - **DragValue** - Compact numeric input with drag-to-adjust
 - **Spinner** - Loading/progress indicator
@@ -21,6 +21,8 @@
 - **Heading** - Large heading text
 - **Image** - Image placeholder with URI (generates egui::Image code)
 - **Placeholder** - Colored rectangle for layout mockups
+- **Group** - Container with title and border (egui::Frame::group)
+- **ScrollBox** - Scrollable content area (egui::ScrollArea)
 
 ### Keyboard Shortcuts Implemented
 | Shortcut | Action |
@@ -39,6 +41,7 @@
 - Arrow key nudging respects grid size
 - Z-order controls for widget layering
 - Updated shortcuts panel in palette
+- Tooltip property available for all widgets
 
 ---
 
@@ -64,13 +67,15 @@ The codebase follows an MVC-style architecture:
 - **View:** GUI rendering in `preview_panels_ui()`, `draw_widget()`, palette/inspector UI
 - **Controller:** Event handling and state management in `RadBuilderApp`
 
-### Supported Widgets (27 types)
+### Supported Widgets (29 types)
 
 **Basic:** Label, Heading, Button, ImageTextButton, Checkbox, Link, Hyperlink, SelectableLabel, Separator
 
 **Input:** TextEdit, TextArea, Password, Slider, DragValue, ComboBox, RadioGroup, DatePicker, AngleSelector, ColorPicker
 
 **Display:** Image, Placeholder, Spinner, ProgressBar
+
+**Containers:** Group, ScrollBox
 
 **Advanced:** MenuButton, CollapsingHeader, Tree, Code
 
@@ -260,13 +265,14 @@ Allow designing multiple screens/views that can be navigated between.
 - Export theme as separate struct
 
 #### 14. Additional Widgets (from TODO)
-**Added:** TextArea, DragValue, Spinner, ColorPicker, Code, Heading, Image, Placeholder
+**Added:** TextArea, DragValue, Spinner, ColorPicker, Code, Heading, Image, Placeholder, Group, ScrollBox
+
+**Also added:** Tooltip property for all widgets
 
 **Still needed:**
 - Table/Grid widget
 - Plot/Chart widget (egui_plot integration)
 - Modal dialog / Window
-- Tooltip
 - Right-click context menu
 - Tabs/TabBar
 - Toolbar

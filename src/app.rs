@@ -323,6 +323,20 @@ impl RadBuilderApp {
                     ..Default::default()
                 },
             ),
+            WidgetKind::Group => (
+                vec2(250.0, 150.0),
+                WidgetProps {
+                    text: "Group".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::ScrollBox => (
+                vec2(200.0, 150.0),
+                WidgetProps {
+                    text: "Scroll content here...".into(),
+                    ..Default::default()
+                },
+            ),
         };
 
         let vecpos = at_global - area_origin - size * 0.5; // local to area
@@ -499,6 +513,8 @@ impl RadBuilderApp {
                         WidgetKind::Heading => vec2(200.0, 32.0),
                         WidgetKind::Image => vec2(150.0, 150.0),
                         WidgetKind::Placeholder => vec2(200.0, 100.0),
+                        WidgetKind::Group => vec2(250.0, 150.0),
+                        WidgetKind::ScrollBox => vec2(200.0, 150.0),
                     };
                     let ghost = egui::Rect::from_center_size(mouse, ghost_size);
                     let layer = egui::LayerId::new(egui::Order::Tooltip, Id::new("ghost"));
@@ -872,6 +888,33 @@ impl RadBuilderApp {
                             });
                         });
                 }
+                WidgetKind::Group => {
+                    egui::Frame::group(ui.style())
+                        .show(ui, |ui| {
+                            ui.set_min_size(w.size - vec2(12.0, 12.0));
+                            ui.vertical(|ui| {
+                                if !w.props.text.is_empty() {
+                                    ui.strong(&w.props.text);
+                                    ui.separator();
+                                }
+                                ui.label("(group contents)");
+                            });
+                        });
+                }
+                WidgetKind::ScrollBox => {
+                    egui::Frame::NONE
+                        .stroke(Stroke::new(1.0, Color32::GRAY))
+                        .corner_radius(4.0)
+                        .show(ui, |ui| {
+                            egui::ScrollArea::both()
+                                .max_width(w.size.x - 4.0)
+                                .max_height(w.size.y - 4.0)
+                                .auto_shrink([false, false])
+                                .show(ui, |ui| {
+                                    ui.label(&w.props.text);
+                                });
+                        });
+                }
             }
         });
         let is_edit_mode = ui
@@ -990,6 +1033,10 @@ impl RadBuilderApp {
         self.palette_item(ui, "Image", WidgetKind::Image);
         self.palette_item(ui, "Placeholder", WidgetKind::Placeholder);
         ui.separator();
+        ui.small("Containers");
+        self.palette_item(ui, "Group", WidgetKind::Group);
+        self.palette_item(ui, "Scroll Box", WidgetKind::ScrollBox);
+        ui.separator();
         ui.small("Advanced");
         self.palette_item(ui, "Text Area", WidgetKind::TextArea);
         self.palette_item(ui, "Drag Value", WidgetKind::DragValue);
@@ -1035,7 +1082,8 @@ impl RadBuilderApp {
                 | WidgetKind::DatePicker
                 | WidgetKind::DragValue
                 | WidgetKind::ColorPicker
-                | WidgetKind::Placeholder => {
+                | WidgetKind::Placeholder
+                | WidgetKind::Group => {
                     ui.label("Text");
                     ui.text_edit_singleline(&mut w.props.text);
                 }
@@ -1049,7 +1097,7 @@ impl RadBuilderApp {
                     ui.label("Text");
                     ui.text_edit_singleline(&mut w.props.text);
                 }
-                WidgetKind::TextArea | WidgetKind::Code => {
+                WidgetKind::TextArea | WidgetKind::Code | WidgetKind::ScrollBox => {
                     ui.label("Content");
                     ui.add(
                         egui::TextEdit::multiline(&mut w.props.text)
@@ -1210,6 +1258,10 @@ impl RadBuilderApp {
                 ui.label("h");
                 ui.add(egui::DragValue::new(&mut w.size.y).range(12.0..=2000.0));
             });
+
+            ui.separator();
+            ui.label("Tooltip (optional)");
+            ui.text_edit_singleline(&mut w.props.tooltip);
 
             ui.add_space(6.0);
             if ui.button("Delete").clicked() {
@@ -1894,6 +1946,46 @@ impl RadBuilderApp {
                         w = size.x,
                         h = size.y,
                         r = c[0], g = c[1], b = c[2], a = c[3],
+                        text = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::Group => {
+                    let title_code = if w.props.text.is_empty() {
+                        String::new()
+                    } else {
+                        format!("ui.strong(\"{}\"); ui.separator(); ", escape(&w.props.text))
+                    };
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            egui::Frame::group(ui.style()).show(ui, |ui| {{ \
+                                ui.set_min_size(egui::vec2({iw:.1},{ih:.1})); \
+                                {title}/* group contents */ \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        iw = size.x - 12.0,
+                        ih = size.y - 12.0,
+                        title = title_code,
+                    ));
+                }
+                WidgetKind::ScrollBox => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            egui::ScrollArea::both().max_width({sw:.1}).max_height({sh:.1}).auto_shrink([false,false]).show(ui, |ui| {{ \
+                                ui.label(\"{text}\"); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        sw = size.x - 4.0,
+                        sh = size.y - 4.0,
                         text = escape(&w.props.text),
                     ));
                 }

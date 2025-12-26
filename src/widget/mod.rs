@@ -78,6 +78,8 @@ pub(crate) enum WidgetKind {
     Code,
     Image,
     Placeholder,
+    Group,
+    ScrollBox,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -99,6 +101,8 @@ pub(crate) struct WidgetProps {
     pub(crate) icon: String,
     // color (rgba 0-255)
     pub(crate) color: [u8; 4],
+    // optional tooltip text
+    pub(crate) tooltip: String,
 }
 
 impl Default for WidgetProps {
@@ -117,6 +121,7 @@ impl Default for WidgetProps {
             day: 1,
             icon: "🖼️".into(),
             color: [100, 149, 237, 255], // cornflower blue
+            tooltip: String::new(),
         }
     }
 }
