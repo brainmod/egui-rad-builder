@@ -438,12 +438,12 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 
 ## Suggested Roadmap
 
-### Phase 1: Foundation (Code Quality)
-1. Split `app.rs` into modules
-2. Extract duplicated widget size constants
-3. Add basic unit tests
-4. Set up GitHub Actions CI
-5. **NEW:** Implement WidgetFactory trait and registry pattern (Mobius-inspired)
+### Phase 1: Foundation (Code Quality) ✅ COMPLETE
+1. ~~Split `app.rs` into modules~~ (Partial: widget module expanded with WidgetKind methods)
+2. ~~Extract duplicated widget size constants~~ ✅ `WidgetKind::default_size()` + `default_props()`
+3. ~~Add basic unit tests~~ ✅ 13 tests covering core functions
+4. ~~Set up GitHub Actions CI~~ ✅ check, fmt, clippy, test, build jobs
+5. ~~Implement WidgetCategory enum~~ ✅ Mobius-inspired category system with `WidgetKind::category()`, `display_name()`, `all()`
 
 ### Phase 2: Core UX Improvements *(High Priority from Issue #15)*
 1. ~~Add keyboard shortcuts~~ ✅
