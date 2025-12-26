@@ -10,6 +10,30 @@
 
 ---
 
+## Recent Changes (2025-12-26)
+
+### New Widgets Added (5 new types)
+- **TextArea** - Multi-line text editing
+- **DragValue** - Compact numeric input with drag-to-adjust
+- **Spinner** - Loading/progress indicator
+- **ColorPicker** - RGBA color selection with picker UI
+- **Code** - Code editor with monospace font and syntax styling
+
+### Keyboard Shortcuts Implemented
+| Shortcut | Action |
+|----------|--------|
+| `Delete` / `Backspace` | Delete selected widget |
+| `Ctrl+C` | Copy selected widget |
+| `Ctrl+V` | Paste widget |
+| `Ctrl+D` | Duplicate selected widget |
+| `Ctrl+G` | Generate code |
+
+### UX Improvements
+- Widget clipboard for copy/paste operations
+- Updated Tips panel with shortcuts reference
+
+---
+
 ## Architecture Analysis
 
 ### Codebase Structure
@@ -32,9 +56,13 @@ The codebase follows an MVC-style architecture:
 - **View:** GUI rendering in `preview_panels_ui()`, `draw_widget()`, palette/inspector UI
 - **Controller:** Event handling and state management in `RadBuilderApp`
 
-### Supported Widgets (19 types)
+### Supported Widgets (24 types)
 
-MenuButton, Label, Button, ImageTextButton, Checkbox, TextEdit, Slider, ProgressBar, RadioGroup, Link, Hyperlink, SelectableLabel, ComboBox, Separator, CollapsingHeader, DatePicker, AngleSelector, Password, Tree
+**Basic:** Label, Button, ImageTextButton, Checkbox, Link, Hyperlink, SelectableLabel, Separator
+
+**Input:** TextEdit, TextArea, Password, Slider, DragValue, ComboBox, RadioGroup, DatePicker, AngleSelector, ColorPicker
+
+**Advanced:** MenuButton, CollapsingHeader, Tree, ProgressBar, Spinner, Code
 
 ---
 
@@ -183,15 +211,15 @@ struct WidgetRegistry {
 }
 ```
 
-#### 9. Keyboard Shortcuts
-**Problem:** No keyboard shortcuts for common operations.
-
-**Solution:** Add shortcuts:
+#### 9. Keyboard Shortcuts ✅ IMPLEMENTED
+Basic shortcuts now available:
 - `Delete` - Delete selected widget
 - `Ctrl+C/V` - Copy/paste widget
 - `Ctrl+D` - Duplicate widget
-- `Ctrl+Z/Y` - Undo/redo
 - `Ctrl+G` - Generate code
+
+**Still needed:**
+- `Ctrl+Z/Y` - Undo/redo
 - `Ctrl+S` - Save project
 - Arrow keys - Nudge selected widget
 
@@ -225,15 +253,19 @@ Allow designing multiple screens/views that can be navigated between.
 - Export theme as separate struct
 
 #### 14. Additional Widgets (from TODO)
+**Added:** TextArea, DragValue, Spinner, ColorPicker, Code
+
+**Still needed:**
 - Image widget (with image picker)
 - Table/Grid widget
 - Plot/Chart widget (egui_plot integration)
-- Modal dialog
+- Modal dialog / Window
 - Tooltip
 - Right-click context menu
 - Tabs/TabBar
 - Toolbar
 - Statusbar
+- Columns layout
 
 #### 15. Live Preview Mode
 Toggle between edit mode (current) and preview mode (interact with widgets without selection handles).
@@ -262,11 +294,11 @@ Starter templates:
 4. Set up GitHub Actions CI
 
 ### Phase 2: Core UX Improvements
-1. Implement undo/redo
-2. Add native file save/load
-3. Add keyboard shortcuts
-4. Add error handling with user feedback
-5. Add widget copy/paste
+1. ~~Add keyboard shortcuts~~ ✅
+2. ~~Add widget copy/paste~~ ✅
+3. Implement undo/redo
+4. Add native file save/load
+5. Add error handling with user feedback
 
 ### Phase 3: Enhanced Editing
 1. Multi-select and alignment tools

@@ -25,6 +25,8 @@ pub(crate) struct RadBuilderApp {
     live_left: Option<Rect>,
     live_right: Option<Rect>,
     live_center: Option<Rect>,
+    // Clipboard for copy/paste
+    clipboard: Option<Widget>,
 }
 
 impl Default for RadBuilderApp {
@@ -43,6 +45,7 @@ impl Default for RadBuilderApp {
             live_left: None,
             live_right: None,
             live_center: None,
+            clipboard: None,
         }
     }
 }
@@ -261,6 +264,42 @@ impl RadBuilderApp {
                 ];
                 (vec2(260.0, 200.0), p)
             }
+            WidgetKind::TextArea => (
+                vec2(280.0, 120.0),
+                WidgetProps {
+                    text: "Multi-line\ntext here".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::DragValue => (
+                vec2(180.0, 24.0),
+                WidgetProps {
+                    text: "Value".into(),
+                    value: 42.0,
+                    min: 0.0,
+                    max: 100.0,
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Spinner => (
+                vec2(32.0, 32.0),
+                WidgetProps::default(),
+            ),
+            WidgetKind::ColorPicker => (
+                vec2(200.0, 28.0),
+                WidgetProps {
+                    text: "Color".into(),
+                    color: [100, 149, 237, 255],
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Code => (
+                vec2(300.0, 150.0),
+                WidgetProps {
+                    text: "fn main() {\n    println!(\"Hello\");\n}".into(),
+                    ..Default::default()
+                },
+            ),
         };
 
         let vecpos = at_global - area_origin - size * 0.5; // local to area
@@ -429,6 +468,11 @@ impl RadBuilderApp {
                         WidgetKind::AngleSelector => vec2(220.0, 28.0),
                         WidgetKind::Password => vec2(220.0, 36.0),
                         WidgetKind::Tree => vec2(260.0, 200.0),
+                        WidgetKind::TextArea => vec2(280.0, 120.0),
+                        WidgetKind::DragValue => vec2(180.0, 24.0),
+                        WidgetKind::Spinner => vec2(32.0, 32.0),
+                        WidgetKind::ColorPicker => vec2(200.0, 28.0),
+                        WidgetKind::Code => vec2(300.0, 150.0),
                     };
                     let ghost = egui::Rect::from_center_size(mouse, ghost_size);
                     let layer = egui::LayerId::new(egui::Order::Tooltip, Id::new("ghost"));
@@ -721,6 +765,56 @@ impl RadBuilderApp {
                             });
                     });
                 }
+                WidgetKind::TextArea => {
+                    let mut buf = w.props.text.clone();
+                    let resp = egui::TextEdit::multiline(&mut buf)
+                        .desired_width(w.size.x)
+                        .desired_rows(5);
+                    ui.add_sized(w.size, resp);
+                    w.props.text = buf;
+                }
+                WidgetKind::DragValue => {
+                    let mut v = w.props.value;
+                    ui.horizontal(|ui| {
+                        ui.label(&w.props.text);
+                        ui.add(egui::DragValue::new(&mut v).range(w.props.min..=w.props.max));
+                    });
+                    w.props.value = v;
+                }
+                WidgetKind::Spinner => {
+                    ui.add(egui::Spinner::new());
+                }
+                WidgetKind::ColorPicker => {
+                    let mut color = Color32::from_rgba_unmultiplied(
+                        w.props.color[0],
+                        w.props.color[1],
+                        w.props.color[2],
+                        w.props.color[3],
+                    );
+                    ui.horizontal(|ui| {
+                        ui.label(&w.props.text);
+                        egui::color_picker::color_edit_button_srgba(
+                            ui,
+                            &mut color,
+                            egui::color_picker::Alpha::OnlyBlend,
+                        );
+                    });
+                    w.props.color = [color.r(), color.g(), color.b(), color.a()];
+                }
+                WidgetKind::Code => {
+                    let mut buf = w.props.text.clone();
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            ui.add(
+                                egui::TextEdit::multiline(&mut buf)
+                                    .code_editor()
+                                    .desired_width(w.size.x)
+                                    .desired_rows(8),
+                            );
+                        });
+                    w.props.text = buf;
+                }
             }
         });
         let is_edit_mode = ui
@@ -833,11 +927,18 @@ impl RadBuilderApp {
         self.palette_item(ui, "Angle Selector", WidgetKind::AngleSelector);
         self.palette_item(ui, "Password", WidgetKind::Password);
         self.palette_item(ui, "Tree", WidgetKind::Tree);
+        ui.separator();
+        ui.small("Advanced");
+        self.palette_item(ui, "Text Area", WidgetKind::TextArea);
+        self.palette_item(ui, "Drag Value", WidgetKind::DragValue);
+        self.palette_item(ui, "Spinner", WidgetKind::Spinner);
+        self.palette_item(ui, "Color Picker", WidgetKind::ColorPicker);
+        self.palette_item(ui, "Code Editor", WidgetKind::Code);
 
         ui.separator();
-        ui.label("Tips:");
+        ui.label("Shortcuts:");
         ui.small(
-            "• Click frame around control to select it\n• Drag to move, drag the corner to resize\n• Snap-to-grid can be changed in Settings",
+            "• Delete: remove widget\n• Ctrl+C/V: copy/paste\n• Ctrl+D: duplicate\n• Ctrl+G: generate code",
         );
     }
 
@@ -868,7 +969,9 @@ impl RadBuilderApp {
                 | WidgetKind::CollapsingHeader
                 | WidgetKind::Password
                 | WidgetKind::AngleSelector
-                | WidgetKind::DatePicker => {
+                | WidgetKind::DatePicker
+                | WidgetKind::DragValue
+                | WidgetKind::ColorPicker => {
                     ui.label("Text");
                     ui.text_edit_singleline(&mut w.props.text);
                 }
@@ -876,10 +979,19 @@ impl RadBuilderApp {
                 | WidgetKind::RadioGroup
                 | WidgetKind::ComboBox
                 | WidgetKind::Tree
-                | WidgetKind::Separator => {}
+                | WidgetKind::Separator
+                | WidgetKind::Spinner => {}
                 WidgetKind::MenuButton => {
                     ui.label("Text");
                     ui.text_edit_singleline(&mut w.props.text);
+                }
+                WidgetKind::TextArea | WidgetKind::Code => {
+                    ui.label("Content");
+                    ui.add(
+                        egui::TextEdit::multiline(&mut w.props.text)
+                            .desired_rows(6)
+                            .desired_width(f32::INFINITY),
+                    );
                 }
             }
             match w.kind {
@@ -964,6 +1076,31 @@ impl RadBuilderApp {
                     );
                 }
                 WidgetKind::Password => { /* no extra props */ }
+                WidgetKind::DragValue => {
+                    ui.add(
+                        egui::Slider::new(&mut w.props.value, w.props.min..=w.props.max)
+                            .text("value"),
+                    );
+                    ui.add(egui::Slider::new(&mut w.props.min, -1000.0..=w.props.max).text("min"));
+                    ui.add(egui::Slider::new(&mut w.props.max, w.props.min..=1000.0).text("max"));
+                }
+                WidgetKind::ColorPicker => {
+                    let mut color = Color32::from_rgba_unmultiplied(
+                        w.props.color[0],
+                        w.props.color[1],
+                        w.props.color[2],
+                        w.props.color[3],
+                    );
+                    ui.horizontal(|ui| {
+                        ui.label("Color");
+                        egui::color_picker::color_edit_button_srgba(
+                            ui,
+                            &mut color,
+                            egui::color_picker::Alpha::OnlyBlend,
+                        );
+                    });
+                    w.props.color = [color.r(), color.g(), color.b(), color.a()];
+                }
                 _ => {}
             }
             ui.separator();
@@ -1141,6 +1278,10 @@ impl RadBuilderApp {
                 WidgetKind::DatePicker => out.push_str(&format!("    date_{}: NaiveDate,\n", w.id)),
                 WidgetKind::Password => out.push_str(&format!("    pass_{}: String,\n", w.id)),
                 WidgetKind::AngleSelector => out.push_str(&format!("    angle_{}: f32,\n", w.id)),
+                WidgetKind::TextArea => out.push_str(&format!("    textarea_{}: String,\n", w.id)),
+                WidgetKind::DragValue => out.push_str(&format!("    drag_{}: f32,\n", w.id)),
+                WidgetKind::ColorPicker => out.push_str(&format!("    color_{}: egui::Color32,\n", w.id)),
+                WidgetKind::Code => out.push_str(&format!("    code_{}: String,\n", w.id)),
                 _ => {}
             }
         }
@@ -1241,6 +1382,32 @@ impl RadBuilderApp {
                     out.push_str(&format!(
                         "            angle_{}: {:.3},\n",
                         w.id, w.props.value
+                    ));
+                }
+                WidgetKind::TextArea => {
+                    out.push_str(&format!(
+                        "            textarea_{}: \"{}\".to_owned(),\n",
+                        w.id,
+                        widget::escape(&w.props.text)
+                    ));
+                }
+                WidgetKind::DragValue => {
+                    out.push_str(&format!(
+                        "            drag_{}: {:.3},\n",
+                        w.id, w.props.value
+                    ));
+                }
+                WidgetKind::ColorPicker => {
+                    out.push_str(&format!(
+                        "            color_{}: egui::Color32::from_rgba_unmultiplied({}, {}, {}, {}),\n",
+                        w.id, w.props.color[0], w.props.color[1], w.props.color[2], w.props.color[3]
+                    ));
+                }
+                WidgetKind::Code => {
+                    out.push_str(&format!(
+                        "            code_{}: \"{}\".to_owned(),\n",
+                        w.id,
+                        widget::escape(&w.props.text)
                     ));
                 }
                 _ => {}
@@ -1538,6 +1705,84 @@ impl RadBuilderApp {
                         nodes = nodes_literal,
                     ));
                 }
+                WidgetKind::TextArea => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.add_sized(egui::vec2({w:.1},{h:.1}), \
+                                egui::TextEdit::multiline(&mut state.textarea_{id}).desired_rows(5) \
+                            ); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
+                    ));
+                }
+                WidgetKind::DragValue => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.horizontal(|ui| {{ \
+                                ui.label(\"{label}\"); \
+                                ui.add(egui::DragValue::new(&mut state.drag_{id}).range({min:.3}..={max:.3})); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
+                        label = escape(&w.props.text),
+                        min = w.props.min,
+                        max = w.props.max,
+                    ));
+                }
+                WidgetKind::Spinner => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.add(egui::Spinner::new()); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                    ));
+                }
+                WidgetKind::ColorPicker => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.horizontal(|ui| {{ \
+                                ui.label(\"{label}\"); \
+                                egui::color_picker::color_edit_button_srgba(ui, &mut state.color_{id}, egui::color_picker::Alpha::OnlyBlend); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
+                        label = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::Code => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            egui::ScrollArea::vertical().auto_shrink([false,false]).show(ui, |ui| {{ \
+                                ui.add(egui::TextEdit::multiline(&mut state.code_{id}).code_editor().desired_width({w:.1}).desired_rows(8)); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
+                    ));
+                }
             }
         };
 
@@ -1643,6 +1888,70 @@ impl RadBuilderApp {
 
 impl eframe::App for RadBuilderApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Keyboard shortcuts - check input first, then apply changes
+        let (delete_pressed, duplicate_pressed, generate_pressed, copy_pressed, paste_pressed) = ctx.input(|i| {
+            let del = i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace);
+            let dup = i.modifiers.command && i.key_pressed(egui::Key::D);
+            let gencode = i.modifiers.command && i.key_pressed(egui::Key::G);
+            let copy = i.modifiers.command && i.key_pressed(egui::Key::C);
+            let paste = i.modifiers.command && i.key_pressed(egui::Key::V);
+            (del, dup, gencode, copy, paste)
+        });
+
+        // Delete selected widget
+        if delete_pressed {
+            if let Some(id) = self.selected {
+                self.project.widgets.retain(|w| w.id != id);
+                self.selected = None;
+            }
+        }
+
+        // Ctrl+C: Copy selected widget
+        if copy_pressed {
+            if let Some(sel_id) = self.selected {
+                if let Some(w) = self.project.widgets.iter().find(|w| w.id == sel_id) {
+                    self.clipboard = Some(w.clone());
+                }
+            }
+        }
+
+        // Ctrl+V: Paste widget from clipboard
+        if paste_pressed {
+            if let Some(w) = self.clipboard.clone() {
+                let new_id = WidgetId::new(self.next_id);
+                self.next_id += 1;
+                let mut pasted = w;
+                pasted.id = new_id;
+                pasted.z = new_id.as_z();
+                pasted.pos.x += 20.0;
+                pasted.pos.y += 20.0;
+                self.project.widgets.push(pasted);
+                self.selected = Some(new_id);
+            }
+        }
+
+        // Ctrl+D: Duplicate selected widget
+        if duplicate_pressed {
+            if let Some(sel_id) = self.selected {
+                if let Some(w) = self.project.widgets.iter().find(|w| w.id == sel_id).cloned() {
+                    let new_id = WidgetId::new(self.next_id);
+                    self.next_id += 1;
+                    let mut dup = w;
+                    dup.id = new_id;
+                    dup.z = new_id.as_z();
+                    dup.pos.x += 20.0;
+                    dup.pos.y += 20.0;
+                    self.project.widgets.push(dup);
+                    self.selected = Some(new_id);
+                }
+            }
+        }
+
+        // Ctrl+G: Generate code
+        if generate_pressed {
+            self.generated = self.generate_code();
+        }
+
         egui::TopBottomPanel::top("menubar").show(ctx, |ui| self.top_bar(ui));
         if self.palette_open {
             egui::SidePanel::left("palette")
