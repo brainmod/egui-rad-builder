@@ -87,6 +87,242 @@ pub(crate) enum WidgetKind {
     Window,
 }
 
+impl WidgetKind {
+    /// Returns the default size for a widget of this kind.
+    /// Centralized to avoid duplication between spawn_widget and ghost preview.
+    pub fn default_size(&self) -> egui::Vec2 {
+        use egui::vec2;
+        match self {
+            WidgetKind::MenuButton => vec2(180.0, 28.0),
+            WidgetKind::Label => vec2(140.0, 24.0),
+            WidgetKind::Button => vec2(160.0, 32.0),
+            WidgetKind::ImageTextButton => vec2(200.0, 36.0),
+            WidgetKind::Checkbox => vec2(160.0, 28.0),
+            WidgetKind::TextEdit => vec2(220.0, 36.0),
+            WidgetKind::Slider => vec2(220.0, 24.0),
+            WidgetKind::ProgressBar => vec2(220.0, 20.0),
+            WidgetKind::RadioGroup => vec2(200.0, 80.0),
+            WidgetKind::Link => vec2(160.0, 20.0),
+            WidgetKind::Hyperlink => vec2(200.0, 20.0),
+            WidgetKind::SelectableLabel => vec2(180.0, 24.0),
+            WidgetKind::ComboBox => vec2(220.0, 28.0),
+            WidgetKind::Separator => vec2(220.0, 8.0),
+            WidgetKind::CollapsingHeader => vec2(260.0, 80.0),
+            WidgetKind::DatePicker => vec2(200.0, 28.0),
+            WidgetKind::AngleSelector => vec2(220.0, 28.0),
+            WidgetKind::Password => vec2(220.0, 36.0),
+            WidgetKind::Tree => vec2(260.0, 200.0),
+            WidgetKind::TextArea => vec2(280.0, 120.0),
+            WidgetKind::DragValue => vec2(180.0, 24.0),
+            WidgetKind::Spinner => vec2(32.0, 32.0),
+            WidgetKind::ColorPicker => vec2(200.0, 28.0),
+            WidgetKind::Code => vec2(300.0, 150.0),
+            WidgetKind::Heading => vec2(200.0, 32.0),
+            WidgetKind::Small => vec2(120.0, 20.0),
+            WidgetKind::Monospace => vec2(140.0, 20.0),
+            WidgetKind::Image => vec2(150.0, 150.0),
+            WidgetKind::Placeholder => vec2(200.0, 100.0),
+            WidgetKind::Group => vec2(250.0, 150.0),
+            WidgetKind::ScrollBox => vec2(200.0, 150.0),
+            WidgetKind::TabBar => vec2(300.0, 32.0),
+            WidgetKind::Columns => vec2(300.0, 120.0),
+            WidgetKind::Window => vec2(280.0, 180.0),
+        }
+    }
+
+    /// Returns the default properties for a widget of this kind.
+    pub fn default_props(&self) -> WidgetProps {
+        match self {
+            WidgetKind::MenuButton => {
+                let mut p = WidgetProps {
+                    text: "Menu".into(),
+                    ..Default::default()
+                };
+                p.items = vec!["First".into(), "Second".into(), "Third".into()];
+                p.selected = 0;
+                p
+            }
+            WidgetKind::Label => WidgetProps {
+                text: "Label".into(),
+                ..Default::default()
+            },
+            WidgetKind::Button => WidgetProps {
+                text: "Button".into(),
+                ..Default::default()
+            },
+            WidgetKind::ImageTextButton => WidgetProps {
+                text: "Button".into(),
+                icon: "🖼️".into(),
+                ..Default::default()
+            },
+            WidgetKind::Checkbox => WidgetProps {
+                text: "Checkbox".into(),
+                ..Default::default()
+            },
+            WidgetKind::TextEdit => WidgetProps {
+                text: "Type here".into(),
+                ..Default::default()
+            },
+            WidgetKind::Slider => WidgetProps {
+                text: "Value".into(),
+                min: 0.0,
+                max: 100.0,
+                value: 42.0,
+                checked: false,
+                ..Default::default()
+            },
+            WidgetKind::ProgressBar => WidgetProps {
+                text: "".into(),
+                value: 0.25,
+                min: 0.0,
+                max: 1.0,
+                checked: false,
+                ..Default::default()
+            },
+            WidgetKind::RadioGroup => {
+                let mut p = WidgetProps {
+                    text: "Radio Group".into(),
+                    ..Default::default()
+                };
+                p.items = vec!["Option A".into(), "Option B".into(), "Option C".into()];
+                p.selected = 0;
+                p
+            }
+            WidgetKind::Link => WidgetProps {
+                text: "Link text".into(),
+                ..Default::default()
+            },
+            WidgetKind::Hyperlink => WidgetProps {
+                text: "Open website".into(),
+                url: "https://example.com".into(),
+                ..Default::default()
+            },
+            WidgetKind::SelectableLabel => WidgetProps {
+                text: "Selectable".into(),
+                checked: false,
+                ..Default::default()
+            },
+            WidgetKind::ComboBox => {
+                let mut p = WidgetProps {
+                    text: "Choose one".into(),
+                    ..Default::default()
+                };
+                p.items = vec!["Red".into(), "Green".into(), "Blue".into()];
+                p.selected = 0;
+                p
+            }
+            WidgetKind::Separator => WidgetProps::default(),
+            WidgetKind::CollapsingHeader => WidgetProps {
+                text: "Section".into(),
+                checked: true, // default open
+                ..Default::default()
+            },
+            WidgetKind::DatePicker => WidgetProps {
+                text: "Pick a date".into(),
+                year: 2025,
+                month: 1,
+                day: 1,
+                ..Default::default()
+            },
+            WidgetKind::AngleSelector => WidgetProps {
+                text: "Angle (deg)".into(),
+                min: 0.0,
+                max: 360.0,
+                value: 45.0,
+                ..Default::default()
+            },
+            WidgetKind::Password => WidgetProps {
+                text: "password".into(),
+                ..Default::default()
+            },
+            WidgetKind::Tree => {
+                let mut p = WidgetProps {
+                    text: "Tree".into(),
+                    ..Default::default()
+                };
+                // Indentation (two spaces = one level) to define hierarchy
+                p.items = vec![
+                    "Animals".into(),
+                    "  Mammals".into(),
+                    "    Dogs".into(),
+                    "    Cats".into(),
+                    "  Birds".into(),
+                    "Plants".into(),
+                    "  Trees".into(),
+                    "  Flowers".into(),
+                ];
+                p
+            }
+            WidgetKind::TextArea => WidgetProps {
+                text: "Multi-line\ntext here".into(),
+                ..Default::default()
+            },
+            WidgetKind::DragValue => WidgetProps {
+                text: "Value".into(),
+                value: 42.0,
+                min: 0.0,
+                max: 100.0,
+                ..Default::default()
+            },
+            WidgetKind::Spinner => WidgetProps::default(),
+            WidgetKind::ColorPicker => WidgetProps {
+                text: "Color".into(),
+                color: [100, 149, 237, 255],
+                ..Default::default()
+            },
+            WidgetKind::Code => WidgetProps {
+                text: "fn main() {\n    println!(\"Hello\");\n}".into(),
+                ..Default::default()
+            },
+            WidgetKind::Heading => WidgetProps {
+                text: "Heading".into(),
+                ..Default::default()
+            },
+            WidgetKind::Small => WidgetProps {
+                text: "Small text".into(),
+                ..Default::default()
+            },
+            WidgetKind::Monospace => WidgetProps {
+                text: "code_value".into(),
+                ..Default::default()
+            },
+            WidgetKind::Image => WidgetProps {
+                text: "image.png".into(),
+                url: "file://image.png".into(),
+                ..Default::default()
+            },
+            WidgetKind::Placeholder => WidgetProps {
+                text: "Placeholder".into(),
+                color: [128, 128, 128, 128],
+                ..Default::default()
+            },
+            WidgetKind::Group => WidgetProps {
+                text: "Group".into(),
+                ..Default::default()
+            },
+            WidgetKind::ScrollBox => WidgetProps {
+                text: "Scroll content here...".into(),
+                ..Default::default()
+            },
+            WidgetKind::TabBar => {
+                let mut p = WidgetProps::default();
+                p.items = vec!["Tab 1".into(), "Tab 2".into(), "Tab 3".into()];
+                p.selected = 0;
+                p
+            }
+            WidgetKind::Columns => WidgetProps {
+                text: "Column content".into(),
+                columns: 2,
+                ..Default::default()
+            },
+            WidgetKind::Window => WidgetProps {
+                text: "Window Title".into(),
+                ..Default::default()
+            },
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct WidgetProps {
     pub(crate) text: String,  // label/button/textedit placeholder
@@ -146,4 +382,111 @@ pub(crate) fn snap_pos_with_grid(p: Pos2, grid: f32) -> Pos2 {
 
 pub(crate) fn escape(s: &str) -> String {
     s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use egui::pos2;
+
+    #[test]
+    fn test_snap_pos_with_grid() {
+        // Test snapping to grid of 10
+        assert_eq!(snap_pos_with_grid(pos2(5.0, 5.0), 10.0), pos2(10.0, 10.0));
+        assert_eq!(snap_pos_with_grid(pos2(4.9, 4.9), 10.0), pos2(0.0, 0.0));
+        assert_eq!(snap_pos_with_grid(pos2(15.0, 25.0), 10.0), pos2(20.0, 30.0));
+
+        // Test snapping to grid of 1 (no-op for integers)
+        assert_eq!(snap_pos_with_grid(pos2(5.4, 3.6), 1.0), pos2(5.0, 4.0));
+
+        // Test snapping to grid of 8
+        assert_eq!(snap_pos_with_grid(pos2(12.0, 20.0), 8.0), pos2(16.0, 24.0));
+    }
+
+    #[test]
+    fn test_escape() {
+        // Test basic strings
+        assert_eq!(escape("hello"), "hello");
+
+        // Test backslash escaping
+        assert_eq!(escape("path\\to\\file"), "path\\\\to\\\\file");
+
+        // Test quote escaping
+        assert_eq!(escape("say \"hello\""), "say \\\"hello\\\"");
+
+        // Test combined
+        assert_eq!(escape("c:\\path\\\"file\""), "c:\\\\path\\\\\\\"file\\\"");
+    }
+
+    #[test]
+    fn test_widget_kind_default_size() {
+        // All widget kinds should return positive dimensions
+        let kinds = [
+            WidgetKind::Label,
+            WidgetKind::Button,
+            WidgetKind::Checkbox,
+            WidgetKind::TextEdit,
+            WidgetKind::Slider,
+            WidgetKind::ProgressBar,
+            WidgetKind::RadioGroup,
+            WidgetKind::ComboBox,
+            WidgetKind::Separator,
+            WidgetKind::Spinner,
+            WidgetKind::ColorPicker,
+            WidgetKind::Group,
+            WidgetKind::Window,
+        ];
+
+        for kind in kinds {
+            let size = kind.default_size();
+            assert!(size.x > 0.0, "{:?} should have positive width", kind);
+            assert!(size.y > 0.0, "{:?} should have positive height", kind);
+        }
+    }
+
+    #[test]
+    fn test_widget_kind_default_props() {
+        // Test that default props are reasonable
+        let label_props = WidgetKind::Label.default_props();
+        assert_eq!(label_props.text, "Label");
+
+        let button_props = WidgetKind::Button.default_props();
+        assert_eq!(button_props.text, "Button");
+
+        let slider_props = WidgetKind::Slider.default_props();
+        assert!(slider_props.min < slider_props.max);
+        assert!(slider_props.value >= slider_props.min);
+        assert!(slider_props.value <= slider_props.max);
+
+        let combobox_props = WidgetKind::ComboBox.default_props();
+        assert!(!combobox_props.items.is_empty());
+        assert!(combobox_props.selected < combobox_props.items.len());
+    }
+
+    #[test]
+    fn test_widget_props_default() {
+        let props = WidgetProps::default();
+        assert!(!props.text.is_empty());
+        assert!(props.min <= props.max);
+        assert_eq!(props.columns, 2);
+        assert!(props.enabled);
+    }
+
+    #[test]
+    fn test_dock_area_default() {
+        let area = DockArea::default();
+        assert_eq!(area, DockArea::Free);
+    }
+
+    #[test]
+    fn test_widget_id_display() {
+        let id = WidgetId::new(42);
+        assert_eq!(format!("{}", id), "42");
+    }
+
+    #[test]
+    fn test_widget_id_z_order() {
+        let id = WidgetId::new(100);
+        assert_eq!(id.as_z(), 100);
+    }
 }
