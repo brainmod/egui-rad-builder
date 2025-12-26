@@ -12,7 +12,7 @@
 
 ## Recent Changes (2025-12-26)
 
-### New Widgets Added (12 new types, 31 total)
+### New Widgets Added (15 new types, 34 total)
 - **TextArea** - Multi-line text editing
 - **DragValue** - Compact numeric input with drag-to-adjust
 - **Spinner** - Loading/progress indicator
@@ -25,6 +25,9 @@
 - **Placeholder** - Colored rectangle for layout mockups
 - **Group** - Container with title, border, and horizontal/vertical layout
 - **ScrollBox** - Scrollable content area (egui::ScrollArea)
+- **TabBar** - Tab selection bar with configurable tabs
+- **Columns** - Multi-column layout container (1-10 columns)
+- **Window** - Floating window with title bar (egui::Window)
 
 ### Keyboard Shortcuts Implemented
 | Shortcut | Action |
@@ -70,7 +73,7 @@ The codebase follows an MVC-style architecture:
 - **View:** GUI rendering in `preview_panels_ui()`, `draw_widget()`, palette/inspector UI
 - **Controller:** Event handling and state management in `RadBuilderApp`
 
-### Supported Widgets (31 types)
+### Supported Widgets (34 types)
 
 **Basic:** Label, Heading, Small, Monospace, Button, ImageTextButton, Checkbox, Link, Hyperlink, SelectableLabel, Separator
 
@@ -78,7 +81,7 @@ The codebase follows an MVC-style architecture:
 
 **Display:** Image, Placeholder, Spinner, ProgressBar
 
-**Containers:** Group (horizontal/vertical layout), ScrollBox
+**Containers:** Group (horizontal/vertical layout), ScrollBox, Columns (1-10), TabBar, Window
 
 **Advanced:** MenuButton, CollapsingHeader, Tree, Code
 
@@ -268,19 +271,16 @@ Allow designing multiple screens/views that can be navigated between.
 - Export theme as separate struct
 
 #### 14. Additional Widgets (from TODO)
-**Added:** TextArea, DragValue, Spinner, ColorPicker, Code, Heading, Image, Placeholder, Group, ScrollBox
+**Added:** TextArea, DragValue, Spinner, ColorPicker, Code, Heading, Image, Placeholder, Group, ScrollBox, Small, Monospace, TabBar, Columns, Window
 
 **Also added:** Tooltip property for all widgets
 
 **Still needed:**
 - Table/Grid widget
 - Plot/Chart widget (egui_plot integration)
-- Modal dialog / Window
 - Right-click context menu
-- Tabs/TabBar
 - Toolbar
 - Statusbar
-- Columns layout
 
 #### 15. Live Preview Mode
 Toggle between edit mode (current) and preview mode (interact with widgets without selection handles).

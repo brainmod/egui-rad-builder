@@ -82,6 +82,9 @@ pub(crate) enum WidgetKind {
     Placeholder,
     Group,
     ScrollBox,
+    TabBar,
+    Columns,
+    Window,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -109,6 +112,8 @@ pub(crate) struct WidgetProps {
     pub(crate) horizontal: bool,
     // enabled state
     pub(crate) enabled: bool,
+    // column count (for Columns widget)
+    pub(crate) columns: usize,
 }
 
 impl Default for WidgetProps {
@@ -130,6 +135,7 @@ impl Default for WidgetProps {
             tooltip: String::new(),
             horizontal: false,
             enabled: true,
+            columns: 2,
         }
     }
 }

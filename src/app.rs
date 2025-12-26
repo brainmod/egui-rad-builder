@@ -351,6 +351,27 @@ impl RadBuilderApp {
                     ..Default::default()
                 },
             ),
+            WidgetKind::TabBar => {
+                let mut p = WidgetProps::default();
+                p.items = vec!["Tab 1".into(), "Tab 2".into(), "Tab 3".into()];
+                p.selected = 0;
+                (vec2(300.0, 32.0), p)
+            }
+            WidgetKind::Columns => (
+                vec2(300.0, 120.0),
+                WidgetProps {
+                    text: "Column content".into(),
+                    columns: 2,
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Window => (
+                vec2(280.0, 180.0),
+                WidgetProps {
+                    text: "Window Title".into(),
+                    ..Default::default()
+                },
+            ),
         };
 
         let vecpos = at_global - area_origin - size * 0.5; // local to area
@@ -531,6 +552,9 @@ impl RadBuilderApp {
                         WidgetKind::Placeholder => vec2(200.0, 100.0),
                         WidgetKind::Group => vec2(250.0, 150.0),
                         WidgetKind::ScrollBox => vec2(200.0, 150.0),
+                        WidgetKind::TabBar => vec2(300.0, 32.0),
+                        WidgetKind::Columns => vec2(300.0, 120.0),
+                        WidgetKind::Window => vec2(280.0, 180.0),
                     };
                     let ghost = egui::Rect::from_center_size(mouse, ghost_size);
                     let layer = egui::LayerId::new(egui::Order::Tooltip, Id::new("ghost"));
@@ -942,6 +966,46 @@ impl RadBuilderApp {
                                 });
                         });
                 }
+                WidgetKind::TabBar => {
+                    ui.horizontal(|ui| {
+                        for (i, item) in w.props.items.iter().enumerate() {
+                            let selected = i == w.props.selected;
+                            if ui.selectable_label(selected, item).clicked() {
+                                w.props.selected = i;
+                            }
+                        }
+                    });
+                }
+                WidgetKind::Columns => {
+                    let cols = w.props.columns.max(1);
+                    egui::Frame::NONE
+                        .stroke(Stroke::new(1.0, Color32::GRAY))
+                        .corner_radius(4.0)
+                        .show(ui, |ui| {
+                            ui.columns(cols, |columns| {
+                                for (i, col) in columns.iter_mut().enumerate() {
+                                    col.label(format!("Col {}", i + 1));
+                                    col.label(&w.props.text);
+                                }
+                            });
+                        });
+                }
+                WidgetKind::Window => {
+                    egui::Frame::window(ui.style())
+                        .show(ui, |ui| {
+                            ui.set_min_size(w.size - vec2(16.0, 16.0));
+                            ui.vertical(|ui| {
+                                ui.horizontal(|ui| {
+                                    ui.strong(&w.props.text);
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        ui.small("✕");
+                                    });
+                                });
+                                ui.separator();
+                                ui.label("(window contents)");
+                            });
+                        });
+                }
             }
         });
         let is_edit_mode = ui
@@ -1065,6 +1129,9 @@ impl RadBuilderApp {
         ui.small("Containers");
         self.palette_item(ui, "Group", WidgetKind::Group);
         self.palette_item(ui, "Scroll Box", WidgetKind::ScrollBox);
+        self.palette_item(ui, "Columns", WidgetKind::Columns);
+        self.palette_item(ui, "Tab Bar", WidgetKind::TabBar);
+        self.palette_item(ui, "Window", WidgetKind::Window);
         ui.separator();
         ui.small("Advanced");
         self.palette_item(ui, "Text Area", WidgetKind::TextArea);
@@ -1114,7 +1181,9 @@ impl RadBuilderApp {
                 | WidgetKind::DragValue
                 | WidgetKind::ColorPicker
                 | WidgetKind::Placeholder
-                | WidgetKind::Group => {
+                | WidgetKind::Group
+                | WidgetKind::Window
+                | WidgetKind::Columns => {
                     ui.label("Text");
                     ui.text_edit_singleline(&mut w.props.text);
                 }
@@ -1123,7 +1192,8 @@ impl RadBuilderApp {
                 | WidgetKind::ComboBox
                 | WidgetKind::Tree
                 | WidgetKind::Separator
-                | WidgetKind::Spinner => {}
+                | WidgetKind::Spinner
+                | WidgetKind::TabBar => {}
                 WidgetKind::MenuButton => {
                     ui.label("Text");
                     ui.text_edit_singleline(&mut w.props.text);
@@ -1169,9 +1239,11 @@ impl RadBuilderApp {
                 WidgetKind::RadioGroup
                 | WidgetKind::ComboBox
                 | WidgetKind::Tree
-                | WidgetKind::MenuButton => {
+                | WidgetKind::MenuButton
+                | WidgetKind::TabBar => {
                     ui.label(match w.kind {
                         WidgetKind::Tree => "Nodes (indent with spaces; 2 spaces per level)",
+                        WidgetKind::TabBar => "Tabs (one per line)",
                         _ => "Items (one per line)",
                     });
                     let mut buf = w.props.items.join("\n");
@@ -1252,6 +1324,12 @@ impl RadBuilderApp {
                 }
                 WidgetKind::Group => {
                     ui.checkbox(&mut w.props.horizontal, "horizontal layout");
+                }
+                WidgetKind::Columns => {
+                    ui.horizontal(|ui| {
+                        ui.label("Columns");
+                        ui.add(egui::DragValue::new(&mut w.props.columns).range(1..=10));
+                    });
                 }
                 _ => {}
             }
@@ -2031,6 +2109,53 @@ impl RadBuilderApp {
                         sw = size.x - 4.0,
                         sh = size.y - 4.0,
                         text = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::TabBar => {
+                    let tabs_code: String = w.props.items.iter().enumerate().map(|(i, tab)| {
+                        format!("ui.selectable_value(&mut state.tab_{id}, {i}, \"{tab}\"); ",
+                            id = w.id, i = i, tab = escape(tab))
+                    }).collect();
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.horizontal(|ui| {{ {tabs} }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        tabs = tabs_code,
+                    ));
+                }
+                WidgetKind::Columns => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.columns({cols}, |columns| {{ \
+                                for col in columns.iter_mut() {{ col.label(\"{text}\"); }} \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        cols = w.props.columns.max(1),
+                        text = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::Window => {
+                    let title = escape(&w.props.text);
+                    out.push_str(&format!(
+                        "    egui::Window::new(\"{title}\").default_pos({origin} + egui::vec2({x:.1},{y:.1})).default_size(egui::vec2({w:.1},{h:.1})).open(&mut state.window_{id}_open).show(ctx, |ui| {{ \
+                            /* window contents */ \
+                        }});\n",
+                        title = title,
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
                     ));
                 }
             }
