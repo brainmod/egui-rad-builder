@@ -1097,54 +1097,83 @@ impl RadBuilderApp {
         ui.heading("Palette");
         ui.separator();
         ui.label("Drag any control onto the canvas");
-        ui.add_space(8.0);
+        ui.add_space(4.0);
 
-        self.palette_item(ui, "Menu Button", WidgetKind::MenuButton);
-        self.palette_item(ui, "Label", WidgetKind::Label);
-        self.palette_item(ui, "Button", WidgetKind::Button);
-        self.palette_item(ui, "Image + Text Button", WidgetKind::ImageTextButton);
-        self.palette_item(ui, "Checkbox", WidgetKind::Checkbox);
-        self.palette_item(ui, "TextEdit", WidgetKind::TextEdit);
-        self.palette_item(ui, "Slider", WidgetKind::Slider);
-        self.palette_item(ui, "ProgressBar", WidgetKind::ProgressBar);
-        self.palette_item(ui, "Radio Group", WidgetKind::RadioGroup);
-        self.palette_item(ui, "Link", WidgetKind::Link);
-        self.palette_item(ui, "Hyperlink", WidgetKind::Hyperlink);
-        self.palette_item(ui, "Selectable Label", WidgetKind::SelectableLabel);
-        self.palette_item(ui, "Combo Box", WidgetKind::ComboBox);
-        self.palette_item(ui, "Separator", WidgetKind::Separator);
-        self.palette_item(ui, "Collapsing Header", WidgetKind::CollapsingHeader);
-        self.palette_item(ui, "Date Picker", WidgetKind::DatePicker);
-        self.palette_item(ui, "Angle Selector", WidgetKind::AngleSelector);
-        self.palette_item(ui, "Password", WidgetKind::Password);
-        self.palette_item(ui, "Tree", WidgetKind::Tree);
-        ui.separator();
-        ui.small("Display");
-        self.palette_item(ui, "Heading", WidgetKind::Heading);
-        self.palette_item(ui, "Small", WidgetKind::Small);
-        self.palette_item(ui, "Monospace", WidgetKind::Monospace);
-        self.palette_item(ui, "Image", WidgetKind::Image);
-        self.palette_item(ui, "Placeholder", WidgetKind::Placeholder);
-        ui.separator();
-        ui.small("Containers");
-        self.palette_item(ui, "Group", WidgetKind::Group);
-        self.palette_item(ui, "Scroll Box", WidgetKind::ScrollBox);
-        self.palette_item(ui, "Columns", WidgetKind::Columns);
-        self.palette_item(ui, "Tab Bar", WidgetKind::TabBar);
-        self.palette_item(ui, "Window", WidgetKind::Window);
-        ui.separator();
-        ui.small("Advanced");
-        self.palette_item(ui, "Text Area", WidgetKind::TextArea);
-        self.palette_item(ui, "Drag Value", WidgetKind::DragValue);
-        self.palette_item(ui, "Spinner", WidgetKind::Spinner);
-        self.palette_item(ui, "Color Picker", WidgetKind::ColorPicker);
-        self.palette_item(ui, "Code Editor", WidgetKind::Code);
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                egui::CollapsingHeader::new("Basic")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "Label", WidgetKind::Label);
+                        self.palette_item(ui, "Button", WidgetKind::Button);
+                        self.palette_item(ui, "Image + Text Button", WidgetKind::ImageTextButton);
+                        self.palette_item(ui, "Checkbox", WidgetKind::Checkbox);
+                        self.palette_item(ui, "Link", WidgetKind::Link);
+                        self.palette_item(ui, "Hyperlink", WidgetKind::Hyperlink);
+                        self.palette_item(ui, "Selectable Label", WidgetKind::SelectableLabel);
+                        self.palette_item(ui, "Separator", WidgetKind::Separator);
+                    });
 
-        ui.separator();
-        ui.label("Shortcuts:");
-        ui.small(
-            "• Arrows: nudge widget\n• Delete: remove\n• Ctrl+C/V: copy/paste\n• Ctrl+D: duplicate\n• ] / [: z-order\n• Ctrl+G: generate",
-        );
+                egui::CollapsingHeader::new("Input")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "TextEdit", WidgetKind::TextEdit);
+                        self.palette_item(ui, "Text Area", WidgetKind::TextArea);
+                        self.palette_item(ui, "Password", WidgetKind::Password);
+                        self.palette_item(ui, "Slider", WidgetKind::Slider);
+                        self.palette_item(ui, "Drag Value", WidgetKind::DragValue);
+                        self.palette_item(ui, "Combo Box", WidgetKind::ComboBox);
+                        self.palette_item(ui, "Radio Group", WidgetKind::RadioGroup);
+                        self.palette_item(ui, "Date Picker", WidgetKind::DatePicker);
+                        self.palette_item(ui, "Angle Selector", WidgetKind::AngleSelector);
+                        self.palette_item(ui, "Color Picker", WidgetKind::ColorPicker);
+                    });
+
+                egui::CollapsingHeader::new("Display")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "Heading", WidgetKind::Heading);
+                        self.palette_item(ui, "Small", WidgetKind::Small);
+                        self.palette_item(ui, "Monospace", WidgetKind::Monospace);
+                        self.palette_item(ui, "ProgressBar", WidgetKind::ProgressBar);
+                        self.palette_item(ui, "Spinner", WidgetKind::Spinner);
+                        self.palette_item(ui, "Image", WidgetKind::Image);
+                        self.palette_item(ui, "Placeholder", WidgetKind::Placeholder);
+                    });
+
+                egui::CollapsingHeader::new("Containers")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "Group", WidgetKind::Group);
+                        self.palette_item(ui, "Scroll Box", WidgetKind::ScrollBox);
+                        self.palette_item(ui, "Columns", WidgetKind::Columns);
+                        self.palette_item(ui, "Tab Bar", WidgetKind::TabBar);
+                        self.palette_item(ui, "Window", WidgetKind::Window);
+                        self.palette_item(ui, "Collapsing Header", WidgetKind::CollapsingHeader);
+                    });
+
+                egui::CollapsingHeader::new("Advanced")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "Menu Button", WidgetKind::MenuButton);
+                        self.palette_item(ui, "Tree", WidgetKind::Tree);
+                        self.palette_item(ui, "Code Editor", WidgetKind::Code);
+                    });
+
+                ui.add_space(8.0);
+                ui.separator();
+                egui::CollapsingHeader::new("Shortcuts")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        ui.small("Arrows: nudge widget");
+                        ui.small("Delete: remove");
+                        ui.small("Ctrl+C/V: copy/paste");
+                        ui.small("Ctrl+D: duplicate");
+                        ui.small("] / [: z-order");
+                        ui.small("Ctrl+G: generate");
+                    });
+            });
     }
 
     fn palette_item(&mut self, ui: &mut egui::Ui, label: &str, kind: WidgetKind) {
