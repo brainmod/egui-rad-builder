@@ -53,10 +53,14 @@ pub(crate) struct Widget {
 pub(crate) enum WidgetKind {
     MenuButton,
     Label,
+    Heading,
+    Small,
+    Monospace,
     Button,
     ImageTextButton,
     Checkbox,
     TextEdit,
+    TextArea,
     Slider,
     ProgressBar,
     RadioGroup,
@@ -70,13 +74,24 @@ pub(crate) enum WidgetKind {
     AngleSelector,
     Password,
     Tree,
+    DragValue,
+    Spinner,
+    ColorPicker,
+    Code,
+    Image,
+    Placeholder,
+    Group,
+    ScrollBox,
+    TabBar,
+    Columns,
+    Window,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct WidgetProps {
     pub(crate) text: String,  // label/button/textedit placeholder
     pub(crate) checked: bool, // checkbox
-    pub(crate) value: f32,    // slider/progress
+    pub(crate) value: f32,    // slider/progress/dragvalue
     pub(crate) min: f32,
     pub(crate) max: f32,
     // lists (for radio/combobox)
@@ -89,6 +104,16 @@ pub(crate) struct WidgetProps {
     pub(crate) month: u32,
     pub(crate) day: u32,
     pub(crate) icon: String,
+    // color (rgba 0-255)
+    pub(crate) color: [u8; 4],
+    // optional tooltip text
+    pub(crate) tooltip: String,
+    // layout direction (for Group)
+    pub(crate) horizontal: bool,
+    // enabled state
+    pub(crate) enabled: bool,
+    // column count (for Columns widget)
+    pub(crate) columns: usize,
 }
 
 impl Default for WidgetProps {
@@ -106,6 +131,11 @@ impl Default for WidgetProps {
             month: 1,
             day: 1,
             icon: "🖼️".into(),
+            color: [100, 149, 237, 255], // cornflower blue
+            tooltip: String::new(),
+            horizontal: false,
+            enabled: true,
+            columns: 2,
         }
     }
 }

@@ -25,6 +25,8 @@ pub(crate) struct RadBuilderApp {
     live_left: Option<Rect>,
     live_right: Option<Rect>,
     live_center: Option<Rect>,
+    // Clipboard for copy/paste
+    clipboard: Option<Widget>,
 }
 
 impl Default for RadBuilderApp {
@@ -43,6 +45,7 @@ impl Default for RadBuilderApp {
             live_left: None,
             live_right: None,
             live_center: None,
+            clipboard: None,
         }
     }
 }
@@ -261,6 +264,114 @@ impl RadBuilderApp {
                 ];
                 (vec2(260.0, 200.0), p)
             }
+            WidgetKind::TextArea => (
+                vec2(280.0, 120.0),
+                WidgetProps {
+                    text: "Multi-line\ntext here".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::DragValue => (
+                vec2(180.0, 24.0),
+                WidgetProps {
+                    text: "Value".into(),
+                    value: 42.0,
+                    min: 0.0,
+                    max: 100.0,
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Spinner => (
+                vec2(32.0, 32.0),
+                WidgetProps::default(),
+            ),
+            WidgetKind::ColorPicker => (
+                vec2(200.0, 28.0),
+                WidgetProps {
+                    text: "Color".into(),
+                    color: [100, 149, 237, 255],
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Code => (
+                vec2(300.0, 150.0),
+                WidgetProps {
+                    text: "fn main() {\n    println!(\"Hello\");\n}".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Heading => (
+                vec2(200.0, 32.0),
+                WidgetProps {
+                    text: "Heading".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Small => (
+                vec2(120.0, 20.0),
+                WidgetProps {
+                    text: "Small text".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Monospace => (
+                vec2(140.0, 20.0),
+                WidgetProps {
+                    text: "code_value".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Image => (
+                vec2(150.0, 150.0),
+                WidgetProps {
+                    text: "image.png".into(),
+                    url: "file://image.png".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Placeholder => (
+                vec2(200.0, 100.0),
+                WidgetProps {
+                    text: "Placeholder".into(),
+                    color: [128, 128, 128, 128],
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Group => (
+                vec2(250.0, 150.0),
+                WidgetProps {
+                    text: "Group".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::ScrollBox => (
+                vec2(200.0, 150.0),
+                WidgetProps {
+                    text: "Scroll content here...".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::TabBar => {
+                let mut p = WidgetProps::default();
+                p.items = vec!["Tab 1".into(), "Tab 2".into(), "Tab 3".into()];
+                p.selected = 0;
+                (vec2(300.0, 32.0), p)
+            }
+            WidgetKind::Columns => (
+                vec2(300.0, 120.0),
+                WidgetProps {
+                    text: "Column content".into(),
+                    columns: 2,
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Window => (
+                vec2(280.0, 180.0),
+                WidgetProps {
+                    text: "Window Title".into(),
+                    ..Default::default()
+                },
+            ),
         };
 
         let vecpos = at_global - area_origin - size * 0.5; // local to area
@@ -429,6 +540,21 @@ impl RadBuilderApp {
                         WidgetKind::AngleSelector => vec2(220.0, 28.0),
                         WidgetKind::Password => vec2(220.0, 36.0),
                         WidgetKind::Tree => vec2(260.0, 200.0),
+                        WidgetKind::TextArea => vec2(280.0, 120.0),
+                        WidgetKind::DragValue => vec2(180.0, 24.0),
+                        WidgetKind::Spinner => vec2(32.0, 32.0),
+                        WidgetKind::ColorPicker => vec2(200.0, 28.0),
+                        WidgetKind::Code => vec2(300.0, 150.0),
+                        WidgetKind::Heading => vec2(200.0, 32.0),
+                        WidgetKind::Small => vec2(120.0, 20.0),
+                        WidgetKind::Monospace => vec2(140.0, 20.0),
+                        WidgetKind::Image => vec2(150.0, 150.0),
+                        WidgetKind::Placeholder => vec2(200.0, 100.0),
+                        WidgetKind::Group => vec2(250.0, 150.0),
+                        WidgetKind::ScrollBox => vec2(200.0, 150.0),
+                        WidgetKind::TabBar => vec2(300.0, 32.0),
+                        WidgetKind::Columns => vec2(300.0, 120.0),
+                        WidgetKind::Window => vec2(280.0, 180.0),
                     };
                     let ghost = egui::Rect::from_center_size(mouse, ghost_size);
                     let layer = egui::LayerId::new(egui::Order::Tooltip, Id::new("ghost"));
@@ -721,6 +847,165 @@ impl RadBuilderApp {
                             });
                     });
                 }
+                WidgetKind::TextArea => {
+                    let mut buf = w.props.text.clone();
+                    let resp = egui::TextEdit::multiline(&mut buf)
+                        .desired_width(w.size.x)
+                        .desired_rows(5);
+                    ui.add_sized(w.size, resp);
+                    w.props.text = buf;
+                }
+                WidgetKind::DragValue => {
+                    let mut v = w.props.value;
+                    ui.horizontal(|ui| {
+                        ui.label(&w.props.text);
+                        ui.add(egui::DragValue::new(&mut v).range(w.props.min..=w.props.max));
+                    });
+                    w.props.value = v;
+                }
+                WidgetKind::Spinner => {
+                    ui.add(egui::Spinner::new());
+                }
+                WidgetKind::ColorPicker => {
+                    let mut color = Color32::from_rgba_unmultiplied(
+                        w.props.color[0],
+                        w.props.color[1],
+                        w.props.color[2],
+                        w.props.color[3],
+                    );
+                    ui.horizontal(|ui| {
+                        ui.label(&w.props.text);
+                        egui::color_picker::color_edit_button_srgba(
+                            ui,
+                            &mut color,
+                            egui::color_picker::Alpha::OnlyBlend,
+                        );
+                    });
+                    w.props.color = [color.r(), color.g(), color.b(), color.a()];
+                }
+                WidgetKind::Code => {
+                    let mut buf = w.props.text.clone();
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            ui.add(
+                                egui::TextEdit::multiline(&mut buf)
+                                    .code_editor()
+                                    .desired_width(w.size.x)
+                                    .desired_rows(8),
+                            );
+                        });
+                    w.props.text = buf;
+                }
+                WidgetKind::Heading => {
+                    ui.heading(&w.props.text);
+                }
+                WidgetKind::Small => {
+                    ui.small(&w.props.text);
+                }
+                WidgetKind::Monospace => {
+                    ui.monospace(&w.props.text);
+                }
+                WidgetKind::Image => {
+                    // Show placeholder with image info
+                    let color = Color32::from_rgba_unmultiplied(80, 80, 80, 200);
+                    egui::Frame::NONE
+                        .fill(color)
+                        .stroke(Stroke::new(1.0, Color32::GRAY))
+                        .show(ui, |ui| {
+                            ui.set_min_size(w.size);
+                            ui.centered_and_justified(|ui| {
+                                ui.label(format!("🖼 {}\n{}x{}", w.props.text, w.size.x as i32, w.size.y as i32));
+                            });
+                        });
+                }
+                WidgetKind::Placeholder => {
+                    let color = Color32::from_rgba_unmultiplied(
+                        w.props.color[0], w.props.color[1], w.props.color[2], w.props.color[3]
+                    );
+                    egui::Frame::NONE
+                        .fill(color)
+                        .stroke(Stroke::new(1.0, Color32::GRAY))
+                        .corner_radius(4.0)
+                        .show(ui, |ui| {
+                            ui.set_min_size(w.size);
+                            ui.centered_and_justified(|ui| {
+                                ui.label(&w.props.text);
+                            });
+                        });
+                }
+                WidgetKind::Group => {
+                    egui::Frame::group(ui.style())
+                        .show(ui, |ui| {
+                            ui.set_min_size(w.size - vec2(12.0, 12.0));
+                            let add_contents = |ui: &mut egui::Ui| {
+                                if !w.props.text.is_empty() {
+                                    ui.strong(&w.props.text);
+                                    ui.separator();
+                                }
+                                ui.label("(group contents)");
+                            };
+                            if w.props.horizontal {
+                                ui.horizontal(add_contents);
+                            } else {
+                                ui.vertical(add_contents);
+                            }
+                        });
+                }
+                WidgetKind::ScrollBox => {
+                    egui::Frame::NONE
+                        .stroke(Stroke::new(1.0, Color32::GRAY))
+                        .corner_radius(4.0)
+                        .show(ui, |ui| {
+                            egui::ScrollArea::both()
+                                .max_width(w.size.x - 4.0)
+                                .max_height(w.size.y - 4.0)
+                                .auto_shrink([false, false])
+                                .show(ui, |ui| {
+                                    ui.label(&w.props.text);
+                                });
+                        });
+                }
+                WidgetKind::TabBar => {
+                    ui.horizontal(|ui| {
+                        for (i, item) in w.props.items.iter().enumerate() {
+                            let selected = i == w.props.selected;
+                            if ui.selectable_label(selected, item).clicked() {
+                                w.props.selected = i;
+                            }
+                        }
+                    });
+                }
+                WidgetKind::Columns => {
+                    let cols = w.props.columns.max(1);
+                    egui::Frame::NONE
+                        .stroke(Stroke::new(1.0, Color32::GRAY))
+                        .corner_radius(4.0)
+                        .show(ui, |ui| {
+                            ui.columns(cols, |columns| {
+                                for (i, col) in columns.iter_mut().enumerate() {
+                                    col.label(format!("Col {}", i + 1));
+                                    col.label(&w.props.text);
+                                }
+                            });
+                        });
+                }
+                WidgetKind::Window => {
+                    egui::Frame::window(ui.style())
+                        .show(ui, |ui| {
+                            ui.set_min_size(w.size - vec2(16.0, 16.0));
+                            ui.vertical(|ui| {
+                                ui.horizontal(|ui| {
+                                    ui.strong(&w.props.text);
+                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                        ui.small("✕");
+                                    });
+                                });
+                                ui.separator();
+                                ui.label("(window contents)");
+                            });
+                        });
+                }
             }
         });
         let is_edit_mode = ui
@@ -812,33 +1097,83 @@ impl RadBuilderApp {
         ui.heading("Palette");
         ui.separator();
         ui.label("Drag any control onto the canvas");
-        ui.add_space(8.0);
+        ui.add_space(4.0);
 
-        self.palette_item(ui, "Menu Button", WidgetKind::MenuButton);
-        self.palette_item(ui, "Label", WidgetKind::Label);
-        self.palette_item(ui, "Button", WidgetKind::Button);
-        self.palette_item(ui, "Image + Text Button", WidgetKind::ImageTextButton);
-        self.palette_item(ui, "Checkbox", WidgetKind::Checkbox);
-        self.palette_item(ui, "TextEdit", WidgetKind::TextEdit);
-        self.palette_item(ui, "Slider", WidgetKind::Slider);
-        self.palette_item(ui, "ProgressBar", WidgetKind::ProgressBar);
-        self.palette_item(ui, "Radio Group", WidgetKind::RadioGroup);
-        self.palette_item(ui, "Link", WidgetKind::Link);
-        self.palette_item(ui, "Hyperlink", WidgetKind::Hyperlink);
-        self.palette_item(ui, "Selectable Label", WidgetKind::SelectableLabel);
-        self.palette_item(ui, "Combo Box", WidgetKind::ComboBox);
-        self.palette_item(ui, "Separator", WidgetKind::Separator);
-        self.palette_item(ui, "Collapsing Header", WidgetKind::CollapsingHeader);
-        self.palette_item(ui, "Date Picker", WidgetKind::DatePicker);
-        self.palette_item(ui, "Angle Selector", WidgetKind::AngleSelector);
-        self.palette_item(ui, "Password", WidgetKind::Password);
-        self.palette_item(ui, "Tree", WidgetKind::Tree);
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                egui::CollapsingHeader::new("Basic")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "Label", WidgetKind::Label);
+                        self.palette_item(ui, "Button", WidgetKind::Button);
+                        self.palette_item(ui, "Image + Text Button", WidgetKind::ImageTextButton);
+                        self.palette_item(ui, "Checkbox", WidgetKind::Checkbox);
+                        self.palette_item(ui, "Link", WidgetKind::Link);
+                        self.palette_item(ui, "Hyperlink", WidgetKind::Hyperlink);
+                        self.palette_item(ui, "Selectable Label", WidgetKind::SelectableLabel);
+                        self.palette_item(ui, "Separator", WidgetKind::Separator);
+                    });
 
-        ui.separator();
-        ui.label("Tips:");
-        ui.small(
-            "• Click frame around control to select it\n• Drag to move, drag the corner to resize\n• Snap-to-grid can be changed in Settings",
-        );
+                egui::CollapsingHeader::new("Input")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "TextEdit", WidgetKind::TextEdit);
+                        self.palette_item(ui, "Text Area", WidgetKind::TextArea);
+                        self.palette_item(ui, "Password", WidgetKind::Password);
+                        self.palette_item(ui, "Slider", WidgetKind::Slider);
+                        self.palette_item(ui, "Drag Value", WidgetKind::DragValue);
+                        self.palette_item(ui, "Combo Box", WidgetKind::ComboBox);
+                        self.palette_item(ui, "Radio Group", WidgetKind::RadioGroup);
+                        self.palette_item(ui, "Date Picker", WidgetKind::DatePicker);
+                        self.palette_item(ui, "Angle Selector", WidgetKind::AngleSelector);
+                        self.palette_item(ui, "Color Picker", WidgetKind::ColorPicker);
+                    });
+
+                egui::CollapsingHeader::new("Display")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "Heading", WidgetKind::Heading);
+                        self.palette_item(ui, "Small", WidgetKind::Small);
+                        self.palette_item(ui, "Monospace", WidgetKind::Monospace);
+                        self.palette_item(ui, "ProgressBar", WidgetKind::ProgressBar);
+                        self.palette_item(ui, "Spinner", WidgetKind::Spinner);
+                        self.palette_item(ui, "Image", WidgetKind::Image);
+                        self.palette_item(ui, "Placeholder", WidgetKind::Placeholder);
+                    });
+
+                egui::CollapsingHeader::new("Containers")
+                    .default_open(true)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "Group", WidgetKind::Group);
+                        self.palette_item(ui, "Scroll Box", WidgetKind::ScrollBox);
+                        self.palette_item(ui, "Columns", WidgetKind::Columns);
+                        self.palette_item(ui, "Tab Bar", WidgetKind::TabBar);
+                        self.palette_item(ui, "Window", WidgetKind::Window);
+                        self.palette_item(ui, "Collapsing Header", WidgetKind::CollapsingHeader);
+                    });
+
+                egui::CollapsingHeader::new("Advanced")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        self.palette_item(ui, "Menu Button", WidgetKind::MenuButton);
+                        self.palette_item(ui, "Tree", WidgetKind::Tree);
+                        self.palette_item(ui, "Code Editor", WidgetKind::Code);
+                    });
+
+                ui.add_space(8.0);
+                ui.separator();
+                egui::CollapsingHeader::new("Shortcuts")
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        ui.small("Arrows: nudge widget");
+                        ui.small("Delete: remove");
+                        ui.small("Ctrl+C/V: copy/paste");
+                        ui.small("Ctrl+D: duplicate");
+                        ui.small("] / [: z-order");
+                        ui.small("Ctrl+G: generate");
+                    });
+            });
     }
 
     fn palette_item(&mut self, ui: &mut egui::Ui, label: &str, kind: WidgetKind) {
@@ -857,6 +1192,9 @@ impl RadBuilderApp {
             ui.add_space(6.0);
             match w.kind {
                 WidgetKind::Label
+                | WidgetKind::Heading
+                | WidgetKind::Small
+                | WidgetKind::Monospace
                 | WidgetKind::Button
                 | WidgetKind::ImageTextButton
                 | WidgetKind::TextEdit
@@ -868,7 +1206,13 @@ impl RadBuilderApp {
                 | WidgetKind::CollapsingHeader
                 | WidgetKind::Password
                 | WidgetKind::AngleSelector
-                | WidgetKind::DatePicker => {
+                | WidgetKind::DatePicker
+                | WidgetKind::DragValue
+                | WidgetKind::ColorPicker
+                | WidgetKind::Placeholder
+                | WidgetKind::Group
+                | WidgetKind::Window
+                | WidgetKind::Columns => {
                     ui.label("Text");
                     ui.text_edit_singleline(&mut w.props.text);
                 }
@@ -876,10 +1220,26 @@ impl RadBuilderApp {
                 | WidgetKind::RadioGroup
                 | WidgetKind::ComboBox
                 | WidgetKind::Tree
-                | WidgetKind::Separator => {}
+                | WidgetKind::Separator
+                | WidgetKind::Spinner
+                | WidgetKind::TabBar => {}
                 WidgetKind::MenuButton => {
                     ui.label("Text");
                     ui.text_edit_singleline(&mut w.props.text);
+                }
+                WidgetKind::TextArea | WidgetKind::Code | WidgetKind::ScrollBox => {
+                    ui.label("Content");
+                    ui.add(
+                        egui::TextEdit::multiline(&mut w.props.text)
+                            .desired_rows(6)
+                            .desired_width(f32::INFINITY),
+                    );
+                }
+                WidgetKind::Image => {
+                    ui.label("Filename");
+                    ui.text_edit_singleline(&mut w.props.text);
+                    ui.label("URI");
+                    ui.text_edit_singleline(&mut w.props.url);
                 }
             }
             match w.kind {
@@ -908,9 +1268,11 @@ impl RadBuilderApp {
                 WidgetKind::RadioGroup
                 | WidgetKind::ComboBox
                 | WidgetKind::Tree
-                | WidgetKind::MenuButton => {
+                | WidgetKind::MenuButton
+                | WidgetKind::TabBar => {
                     ui.label(match w.kind {
                         WidgetKind::Tree => "Nodes (indent with spaces; 2 spaces per level)",
+                        WidgetKind::TabBar => "Tabs (one per line)",
                         _ => "Items (one per line)",
                     });
                     let mut buf = w.props.items.join("\n");
@@ -964,6 +1326,40 @@ impl RadBuilderApp {
                     );
                 }
                 WidgetKind::Password => { /* no extra props */ }
+                WidgetKind::DragValue => {
+                    ui.add(
+                        egui::Slider::new(&mut w.props.value, w.props.min..=w.props.max)
+                            .text("value"),
+                    );
+                    ui.add(egui::Slider::new(&mut w.props.min, -1000.0..=w.props.max).text("min"));
+                    ui.add(egui::Slider::new(&mut w.props.max, w.props.min..=1000.0).text("max"));
+                }
+                WidgetKind::ColorPicker | WidgetKind::Placeholder => {
+                    let mut color = Color32::from_rgba_unmultiplied(
+                        w.props.color[0],
+                        w.props.color[1],
+                        w.props.color[2],
+                        w.props.color[3],
+                    );
+                    ui.horizontal(|ui| {
+                        ui.label("Color");
+                        egui::color_picker::color_edit_button_srgba(
+                            ui,
+                            &mut color,
+                            egui::color_picker::Alpha::OnlyBlend,
+                        );
+                    });
+                    w.props.color = [color.r(), color.g(), color.b(), color.a()];
+                }
+                WidgetKind::Group => {
+                    ui.checkbox(&mut w.props.horizontal, "horizontal layout");
+                }
+                WidgetKind::Columns => {
+                    ui.horizontal(|ui| {
+                        ui.label("Columns");
+                        ui.add(egui::DragValue::new(&mut w.props.columns).range(1..=10));
+                    });
+                }
                 _ => {}
             }
             ui.separator();
@@ -1003,6 +1399,10 @@ impl RadBuilderApp {
                 ui.label("h");
                 ui.add(egui::DragValue::new(&mut w.size.y).range(12.0..=2000.0));
             });
+
+            ui.separator();
+            ui.label("Tooltip (optional)");
+            ui.text_edit_singleline(&mut w.props.tooltip);
 
             ui.add_space(6.0);
             if ui.button("Delete").clicked() {
@@ -1141,6 +1541,10 @@ impl RadBuilderApp {
                 WidgetKind::DatePicker => out.push_str(&format!("    date_{}: NaiveDate,\n", w.id)),
                 WidgetKind::Password => out.push_str(&format!("    pass_{}: String,\n", w.id)),
                 WidgetKind::AngleSelector => out.push_str(&format!("    angle_{}: f32,\n", w.id)),
+                WidgetKind::TextArea => out.push_str(&format!("    textarea_{}: String,\n", w.id)),
+                WidgetKind::DragValue => out.push_str(&format!("    drag_{}: f32,\n", w.id)),
+                WidgetKind::ColorPicker => out.push_str(&format!("    color_{}: egui::Color32,\n", w.id)),
+                WidgetKind::Code => out.push_str(&format!("    code_{}: String,\n", w.id)),
                 _ => {}
             }
         }
@@ -1243,6 +1647,32 @@ impl RadBuilderApp {
                         w.id, w.props.value
                     ));
                 }
+                WidgetKind::TextArea => {
+                    out.push_str(&format!(
+                        "            textarea_{}: \"{}\".to_owned(),\n",
+                        w.id,
+                        widget::escape(&w.props.text)
+                    ));
+                }
+                WidgetKind::DragValue => {
+                    out.push_str(&format!(
+                        "            drag_{}: {:.3},\n",
+                        w.id, w.props.value
+                    ));
+                }
+                WidgetKind::ColorPicker => {
+                    out.push_str(&format!(
+                        "            color_{}: egui::Color32::from_rgba_unmultiplied({}, {}, {}, {}),\n",
+                        w.id, w.props.color[0], w.props.color[1], w.props.color[2], w.props.color[3]
+                    ));
+                }
+                WidgetKind::Code => {
+                    out.push_str(&format!(
+                        "            code_{}: \"{}\".to_owned(),\n",
+                        w.id,
+                        widget::escape(&w.props.text)
+                    ));
+                }
                 _ => {}
             }
         }
@@ -1278,6 +1708,14 @@ impl RadBuilderApp {
 				}
                 WidgetKind::Label => out.push_str(&format!(
                     "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size({origin} + egui::vec2({:.1},{:.1}), egui::vec2({:.1},{:.1}))), |ui| {{ ui.label(\"{}\"); }});\n",
+                    pos.x,pos.y,size.x,size.y,escape(&w.props.text)
+                )),
+                WidgetKind::Small => out.push_str(&format!(
+                    "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size({origin} + egui::vec2({:.1},{:.1}), egui::vec2({:.1},{:.1}))), |ui| {{ ui.small(\"{}\"); }});\n",
+                    pos.x,pos.y,size.x,size.y,escape(&w.props.text)
+                )),
+                WidgetKind::Monospace => out.push_str(&format!(
+                    "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size({origin} + egui::vec2({:.1},{:.1}), egui::vec2({:.1},{:.1}))), |ui| {{ ui.monospace(\"{}\"); }});\n",
                     pos.x,pos.y,size.x,size.y,escape(&w.props.text)
                 )),
                 WidgetKind::Button => {
@@ -1538,6 +1976,217 @@ impl RadBuilderApp {
                         nodes = nodes_literal,
                     ));
                 }
+                WidgetKind::TextArea => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.add_sized(egui::vec2({w:.1},{h:.1}), \
+                                egui::TextEdit::multiline(&mut state.textarea_{id}).desired_rows(5) \
+                            ); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
+                    ));
+                }
+                WidgetKind::DragValue => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.horizontal(|ui| {{ \
+                                ui.label(\"{label}\"); \
+                                ui.add(egui::DragValue::new(&mut state.drag_{id}).range({min:.3}..={max:.3})); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
+                        label = escape(&w.props.text),
+                        min = w.props.min,
+                        max = w.props.max,
+                    ));
+                }
+                WidgetKind::Spinner => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.add(egui::Spinner::new()); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                    ));
+                }
+                WidgetKind::ColorPicker => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.horizontal(|ui| {{ \
+                                ui.label(\"{label}\"); \
+                                egui::color_picker::color_edit_button_srgba(ui, &mut state.color_{id}, egui::color_picker::Alpha::OnlyBlend); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
+                        label = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::Code => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            egui::ScrollArea::vertical().auto_shrink([false,false]).show(ui, |ui| {{ \
+                                ui.add(egui::TextEdit::multiline(&mut state.code_{id}).code_editor().desired_width({w:.1}).desired_rows(8)); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
+                    ));
+                }
+                WidgetKind::Heading => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.heading(\"{text}\"); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        text = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::Image => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.add(egui::Image::new(\"{uri}\").fit_to_exact_size(egui::vec2({w:.1},{h:.1}))); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        uri = escape(&w.props.url),
+                    ));
+                }
+                WidgetKind::Placeholder => {
+                    let c = w.props.color;
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            egui::Frame::NONE.fill(egui::Color32::from_rgba_unmultiplied({r},{g},{b},{a})).corner_radius(4.0).show(ui, |ui| {{ \
+                                ui.set_min_size(egui::vec2({w:.1},{h:.1})); \
+                                ui.centered_and_justified(|ui| ui.label(\"{text}\")); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        r = c[0], g = c[1], b = c[2], a = c[3],
+                        text = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::Group => {
+                    let title_code = if w.props.text.is_empty() {
+                        String::new()
+                    } else {
+                        format!("ui.strong(\"{}\"); ui.separator(); ", escape(&w.props.text))
+                    };
+                    let layout_fn = if w.props.horizontal { "horizontal" } else { "vertical" };
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            egui::Frame::group(ui.style()).show(ui, |ui| {{ \
+                                ui.set_min_size(egui::vec2({iw:.1},{ih:.1})); \
+                                ui.{layout_fn}(|ui| {{ {title}/* group contents */ }}); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        iw = size.x - 12.0,
+                        ih = size.y - 12.0,
+                        title = title_code,
+                        layout_fn = layout_fn,
+                    ));
+                }
+                WidgetKind::ScrollBox => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            egui::ScrollArea::both().max_width({sw:.1}).max_height({sh:.1}).auto_shrink([false,false]).show(ui, |ui| {{ \
+                                ui.label(\"{text}\"); \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        sw = size.x - 4.0,
+                        sh = size.y - 4.0,
+                        text = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::TabBar => {
+                    let tabs_code: String = w.props.items.iter().enumerate().map(|(i, tab)| {
+                        format!("ui.selectable_value(&mut state.tab_{id}, {i}, \"{tab}\"); ",
+                            id = w.id, i = i, tab = escape(tab))
+                    }).collect();
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.horizontal(|ui| {{ {tabs} }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        tabs = tabs_code,
+                    ));
+                }
+                WidgetKind::Columns => {
+                    out.push_str(&format!(
+                        "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
+                            {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
+                            ui.columns({cols}, |columns| {{ \
+                                for col in columns.iter_mut() {{ col.label(\"{text}\"); }} \
+                            }}); \
+                        }});\n",
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        cols = w.props.columns.max(1),
+                        text = escape(&w.props.text),
+                    ));
+                }
+                WidgetKind::Window => {
+                    let title = escape(&w.props.text);
+                    out.push_str(&format!(
+                        "    egui::Window::new(\"{title}\").default_pos({origin} + egui::vec2({x:.1},{y:.1})).default_size(egui::vec2({w:.1},{h:.1})).open(&mut state.window_{id}_open).show(ctx, |ui| {{ \
+                            /* window contents */ \
+                        }});\n",
+                        title = title,
+                        x = pos.x,
+                        y = pos.y,
+                        w = size.x,
+                        h = size.y,
+                        id = w.id,
+                    ));
+                }
             }
         };
 
@@ -1643,6 +2292,114 @@ impl RadBuilderApp {
 
 impl eframe::App for RadBuilderApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Keyboard shortcuts - check input first, then apply changes
+        let (
+            delete_pressed, duplicate_pressed, generate_pressed, copy_pressed, paste_pressed,
+            arrow_up, arrow_down, arrow_left, arrow_right,
+            bring_front, send_back
+        ) = ctx.input(|i| {
+            let del = i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace);
+            let dup = i.modifiers.command && i.key_pressed(egui::Key::D);
+            let gencode = i.modifiers.command && i.key_pressed(egui::Key::G);
+            let copy = i.modifiers.command && i.key_pressed(egui::Key::C);
+            let paste = i.modifiers.command && i.key_pressed(egui::Key::V);
+            // Arrow keys for nudging
+            let up = i.key_pressed(egui::Key::ArrowUp);
+            let down = i.key_pressed(egui::Key::ArrowDown);
+            let left = i.key_pressed(egui::Key::ArrowLeft);
+            let right = i.key_pressed(egui::Key::ArrowRight);
+            // Z-order: ] = bring to front, [ = send to back
+            let front = i.key_pressed(egui::Key::CloseBracket);
+            let back = i.key_pressed(egui::Key::OpenBracket);
+            (del, dup, gencode, copy, paste, up, down, left, right, front, back)
+        });
+
+        // Delete selected widget
+        if delete_pressed {
+            if let Some(id) = self.selected {
+                self.project.widgets.retain(|w| w.id != id);
+                self.selected = None;
+            }
+        }
+
+        // Arrow keys: Nudge selected widget
+        if let Some(sel_id) = self.selected {
+            let nudge = self.grid_size.max(1.0);
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == sel_id) {
+                if arrow_up { w.pos.y -= nudge; }
+                if arrow_down { w.pos.y += nudge; }
+                if arrow_left { w.pos.x -= nudge; }
+                if arrow_right { w.pos.x += nudge; }
+                // Clamp position
+                w.pos.x = w.pos.x.max(0.0);
+                w.pos.y = w.pos.y.max(0.0);
+            }
+        }
+
+        // Z-order controls
+        if bring_front {
+            if let Some(sel_id) = self.selected {
+                let max_z = self.project.widgets.iter().map(|w| w.z).max().unwrap_or(0);
+                if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == sel_id) {
+                    w.z = max_z + 1;
+                }
+            }
+        }
+        if send_back {
+            if let Some(sel_id) = self.selected {
+                let min_z = self.project.widgets.iter().map(|w| w.z).min().unwrap_or(0);
+                if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == sel_id) {
+                    w.z = min_z - 1;
+                }
+            }
+        }
+
+        // Ctrl+C: Copy selected widget
+        if copy_pressed {
+            if let Some(sel_id) = self.selected {
+                if let Some(w) = self.project.widgets.iter().find(|w| w.id == sel_id) {
+                    self.clipboard = Some(w.clone());
+                }
+            }
+        }
+
+        // Ctrl+V: Paste widget from clipboard
+        if paste_pressed {
+            if let Some(w) = self.clipboard.clone() {
+                let new_id = WidgetId::new(self.next_id);
+                self.next_id += 1;
+                let mut pasted = w;
+                pasted.id = new_id;
+                pasted.z = new_id.as_z();
+                pasted.pos.x += 20.0;
+                pasted.pos.y += 20.0;
+                self.project.widgets.push(pasted);
+                self.selected = Some(new_id);
+            }
+        }
+
+        // Ctrl+D: Duplicate selected widget
+        if duplicate_pressed {
+            if let Some(sel_id) = self.selected {
+                if let Some(w) = self.project.widgets.iter().find(|w| w.id == sel_id).cloned() {
+                    let new_id = WidgetId::new(self.next_id);
+                    self.next_id += 1;
+                    let mut dup = w;
+                    dup.id = new_id;
+                    dup.z = new_id.as_z();
+                    dup.pos.x += 20.0;
+                    dup.pos.y += 20.0;
+                    self.project.widgets.push(dup);
+                    self.selected = Some(new_id);
+                }
+            }
+        }
+
+        // Ctrl+G: Generate code
+        if generate_pressed {
+            self.generated = self.generate_code();
+        }
+
         egui::TopBottomPanel::top("menubar").show(ctx, |ui| self.top_bar(ui));
         if self.palette_open {
             egui::SidePanel::left("palette")
