@@ -12,16 +12,18 @@
 
 ## Recent Changes (2025-12-26)
 
-### New Widgets Added (10 new types, 29 total)
+### New Widgets Added (12 new types, 31 total)
 - **TextArea** - Multi-line text editing
 - **DragValue** - Compact numeric input with drag-to-adjust
 - **Spinner** - Loading/progress indicator
 - **ColorPicker** - RGBA color selection with picker UI
 - **Code** - Code editor with monospace font and syntax styling
 - **Heading** - Large heading text
+- **Small** - Small text for secondary content
+- **Monospace** - Monospace text for code/values
 - **Image** - Image placeholder with URI (generates egui::Image code)
 - **Placeholder** - Colored rectangle for layout mockups
-- **Group** - Container with title and border (egui::Frame::group)
+- **Group** - Container with title, border, and horizontal/vertical layout
 - **ScrollBox** - Scrollable content area (egui::ScrollArea)
 
 ### Keyboard Shortcuts Implemented
@@ -42,6 +44,7 @@
 - Z-order controls for widget layering
 - Updated shortcuts panel in palette
 - Tooltip property available for all widgets
+- Group containers support horizontal/vertical layout toggle
 
 ---
 
@@ -67,15 +70,15 @@ The codebase follows an MVC-style architecture:
 - **View:** GUI rendering in `preview_panels_ui()`, `draw_widget()`, palette/inspector UI
 - **Controller:** Event handling and state management in `RadBuilderApp`
 
-### Supported Widgets (29 types)
+### Supported Widgets (31 types)
 
-**Basic:** Label, Heading, Button, ImageTextButton, Checkbox, Link, Hyperlink, SelectableLabel, Separator
+**Basic:** Label, Heading, Small, Monospace, Button, ImageTextButton, Checkbox, Link, Hyperlink, SelectableLabel, Separator
 
 **Input:** TextEdit, TextArea, Password, Slider, DragValue, ComboBox, RadioGroup, DatePicker, AngleSelector, ColorPicker
 
 **Display:** Image, Placeholder, Spinner, ProgressBar
 
-**Containers:** Group, ScrollBox
+**Containers:** Group (horizontal/vertical layout), ScrollBox
 
 **Advanced:** MenuButton, CollapsingHeader, Tree, Code
 

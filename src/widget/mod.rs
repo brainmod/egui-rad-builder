@@ -54,6 +54,8 @@ pub(crate) enum WidgetKind {
     MenuButton,
     Label,
     Heading,
+    Small,
+    Monospace,
     Button,
     ImageTextButton,
     Checkbox,
@@ -103,6 +105,10 @@ pub(crate) struct WidgetProps {
     pub(crate) color: [u8; 4],
     // optional tooltip text
     pub(crate) tooltip: String,
+    // layout direction (for Group)
+    pub(crate) horizontal: bool,
+    // enabled state
+    pub(crate) enabled: bool,
 }
 
 impl Default for WidgetProps {
@@ -122,6 +128,8 @@ impl Default for WidgetProps {
             icon: "🖼️".into(),
             color: [100, 149, 237, 255], // cornflower blue
             tooltip: String::new(),
+            horizontal: false,
+            enabled: true,
         }
     }
 }

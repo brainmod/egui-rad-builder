@@ -307,6 +307,20 @@ impl RadBuilderApp {
                     ..Default::default()
                 },
             ),
+            WidgetKind::Small => (
+                vec2(120.0, 20.0),
+                WidgetProps {
+                    text: "Small text".into(),
+                    ..Default::default()
+                },
+            ),
+            WidgetKind::Monospace => (
+                vec2(140.0, 20.0),
+                WidgetProps {
+                    text: "code_value".into(),
+                    ..Default::default()
+                },
+            ),
             WidgetKind::Image => (
                 vec2(150.0, 150.0),
                 WidgetProps {
@@ -511,6 +525,8 @@ impl RadBuilderApp {
                         WidgetKind::ColorPicker => vec2(200.0, 28.0),
                         WidgetKind::Code => vec2(300.0, 150.0),
                         WidgetKind::Heading => vec2(200.0, 32.0),
+                        WidgetKind::Small => vec2(120.0, 20.0),
+                        WidgetKind::Monospace => vec2(140.0, 20.0),
                         WidgetKind::Image => vec2(150.0, 150.0),
                         WidgetKind::Placeholder => vec2(200.0, 100.0),
                         WidgetKind::Group => vec2(250.0, 150.0),
@@ -860,6 +876,12 @@ impl RadBuilderApp {
                 WidgetKind::Heading => {
                     ui.heading(&w.props.text);
                 }
+                WidgetKind::Small => {
+                    ui.small(&w.props.text);
+                }
+                WidgetKind::Monospace => {
+                    ui.monospace(&w.props.text);
+                }
                 WidgetKind::Image => {
                     // Show placeholder with image info
                     let color = Color32::from_rgba_unmultiplied(80, 80, 80, 200);
@@ -892,13 +914,18 @@ impl RadBuilderApp {
                     egui::Frame::group(ui.style())
                         .show(ui, |ui| {
                             ui.set_min_size(w.size - vec2(12.0, 12.0));
-                            ui.vertical(|ui| {
+                            let add_contents = |ui: &mut egui::Ui| {
                                 if !w.props.text.is_empty() {
                                     ui.strong(&w.props.text);
                                     ui.separator();
                                 }
                                 ui.label("(group contents)");
-                            });
+                            };
+                            if w.props.horizontal {
+                                ui.horizontal(add_contents);
+                            } else {
+                                ui.vertical(add_contents);
+                            }
                         });
                 }
                 WidgetKind::ScrollBox => {
@@ -1030,6 +1057,8 @@ impl RadBuilderApp {
         ui.separator();
         ui.small("Display");
         self.palette_item(ui, "Heading", WidgetKind::Heading);
+        self.palette_item(ui, "Small", WidgetKind::Small);
+        self.palette_item(ui, "Monospace", WidgetKind::Monospace);
         self.palette_item(ui, "Image", WidgetKind::Image);
         self.palette_item(ui, "Placeholder", WidgetKind::Placeholder);
         ui.separator();
@@ -1068,6 +1097,8 @@ impl RadBuilderApp {
             match w.kind {
                 WidgetKind::Label
                 | WidgetKind::Heading
+                | WidgetKind::Small
+                | WidgetKind::Monospace
                 | WidgetKind::Button
                 | WidgetKind::ImageTextButton
                 | WidgetKind::TextEdit
@@ -1218,6 +1249,9 @@ impl RadBuilderApp {
                         );
                     });
                     w.props.color = [color.r(), color.g(), color.b(), color.a()];
+                }
+                WidgetKind::Group => {
+                    ui.checkbox(&mut w.props.horizontal, "horizontal layout");
                 }
                 _ => {}
             }
@@ -1567,6 +1601,14 @@ impl RadBuilderApp {
 				}
                 WidgetKind::Label => out.push_str(&format!(
                     "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size({origin} + egui::vec2({:.1},{:.1}), egui::vec2({:.1},{:.1}))), |ui| {{ ui.label(\"{}\"); }});\n",
+                    pos.x,pos.y,size.x,size.y,escape(&w.props.text)
+                )),
+                WidgetKind::Small => out.push_str(&format!(
+                    "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size({origin} + egui::vec2({:.1},{:.1}), egui::vec2({:.1},{:.1}))), |ui| {{ ui.small(\"{}\"); }});\n",
+                    pos.x,pos.y,size.x,size.y,escape(&w.props.text)
+                )),
+                WidgetKind::Monospace => out.push_str(&format!(
+                    "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size({origin} + egui::vec2({:.1},{:.1}), egui::vec2({:.1},{:.1}))), |ui| {{ ui.monospace(\"{}\"); }});\n",
                     pos.x,pos.y,size.x,size.y,escape(&w.props.text)
                 )),
                 WidgetKind::Button => {
@@ -1955,12 +1997,13 @@ impl RadBuilderApp {
                     } else {
                         format!("ui.strong(\"{}\"); ui.separator(); ", escape(&w.props.text))
                     };
+                    let layout_fn = if w.props.horizontal { "horizontal" } else { "vertical" };
                     out.push_str(&format!(
                         "    ui.scope_builder(egui::UiBuilder::new().max_rect(egui::Rect::from_min_size(\
                             {origin} + egui::vec2({x:.1},{y:.1}), egui::vec2({w:.1},{h:.1}))), |ui| {{ \
                             egui::Frame::group(ui.style()).show(ui, |ui| {{ \
                                 ui.set_min_size(egui::vec2({iw:.1},{ih:.1})); \
-                                {title}/* group contents */ \
+                                ui.{layout_fn}(|ui| {{ {title}/* group contents */ }}); \
                             }}); \
                         }});\n",
                         x = pos.x,
@@ -1970,6 +2013,7 @@ impl RadBuilderApp {
                         iw = size.x - 12.0,
                         ih = size.y - 12.0,
                         title = title_code,
+                        layout_fn = layout_fn,
                     ));
                 }
                 WidgetKind::ScrollBox => {
