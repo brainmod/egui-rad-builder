@@ -10,6 +10,75 @@
 
 ---
 
+## Design Inspiration & Reference Architecture
+
+### Mobius-ECS Analysis ([saturn77/mobius-ecs](https://github.com/saturn77/mobius-ecs))
+
+Mobius-ECS is a visual UI designer for Rust/egui built on Entity Component System principles. Key design elements to consider:
+
+#### Architecture Patterns Worth Adopting
+
+| Pattern | Mobius Approach | Opportunity for egui-rad-builder |
+|---------|-----------------|----------------------------------|
+| **ECS Foundation** | Uses `bevy_ecs` for modularity | Consider lightweight ECS for widget management, enabling dynamic component composition |
+| **Signals/Slots** | `egui_mobius` for thread-safe communication | Add event-driven widget communication for preview interactivity |
+| **Two-Tier Structure** | Designer app + Framework library | Separate core widget library from builder app for reusability |
+| **Docking Integration** | `egui_dock` (0.17.0) as template layer | Already using panels; could adopt egui_dock for modular window architecture |
+
+#### Notable Features to Consider
+
+1. **Visual Alignment Tools** - Horizontal/vertical alignment with distribution controls and grid snapping (priority from Issue #15)
+2. **Hot-Reload Support** - Instant UI updates during development
+3. **Template System** - Declarative UI structure definitions
+4. **Project Export** - Generates complete Cargo projects with dependencies (already implemented here)
+
+#### Code Generation Approach (Mobius)
+- Uses `syntect` for syntax highlighting in generated code preview
+- Produces production-ready egui code from visual designs
+- Integrates signals/slots patterns into generated code
+
+### egui Demo Widget Gallery Analysis ([egui.rs](https://www.egui.rs))
+
+The official egui demo showcases best practices for widget organization and UX patterns:
+
+#### Widget Organization Patterns
+
+**Consistent Configuration**:
+- Builder pattern with chainable methods (`.with_date_button()`, `.on_hover_text()`)
+- State fields for: enabled, visible, opacity, interactivity
+- Hover text documentation on all interactive elements
+
+**Grid-Based Layout**:
+- Two-column grid: labels/docs on left, widgets on right
+- Consistent spacing and striping for visual hierarchy
+- `ui.scope_builder()` for grouped widget state management
+
+**Progressive Disclosure**:
+- CollapsingHeader for expandable sections
+- Feature-gated optional components
+- Conditional widget inclusion without layout disruption
+
+#### Widget Categories (Official egui)
+
+| Category | Widgets |
+|----------|---------|
+| **Text & Display** | Label, Hyperlink, Separator |
+| **Input** | TextEdit (with hint text), Button, Link |
+| **Selection** | Checkbox, RadioButton, SelectableLabel, ComboBox |
+| **Numeric** | Slider (with suffix), DragValue (with speed config) |
+| **Feedback** | ProgressBar (animated), Spinner |
+| **Visual** | Color picker, Image, Image+Button combo |
+| **Structure** | CollapsingHeader, Grid (configurable striping/spacing) |
+
+#### UX Best Practices from egui Demo
+
+1. **Scope Isolation** - Wrap widget groups with shared opacity/interactivity states
+2. **Conditional Features** - Feature-gated components (e.g., chrono-dependent DatePicker)
+3. **Snapshot Testing** - Multiple pixel densities and theme combinations
+4. **Hover Documentation** - Consistent `.on_hover_text()` across all interactive elements
+
+---
+
 ## Recent Changes (2025-12-26)
 
 ### New Widgets Added (15 new types, 34 total)
@@ -214,23 +283,42 @@ error_message: Option<String>,
 
 ### Medium Priority
 
-#### 8. Widget Registry/Plugin System
+#### 8. Widget Registry/Plugin System (Inspired by Mobius-ECS)
 **Problem:** Adding new widgets requires modifying 4+ places in `app.rs`.
 
-**Solution:** Create a widget registry:
+**Solution:** Create a widget registry following Mobius-ECS's component-based approach:
 ```rust
-trait WidgetFactory {
+/// Widget factory trait - each widget type implements this
+trait WidgetFactory: Send + Sync {
     fn kind(&self) -> WidgetKind;
+    fn display_name(&self) -> &str;
+    fn category(&self) -> WidgetCategory;  // Basic, Input, Display, Containers, Advanced
     fn default_size(&self) -> Vec2;
     fn default_props(&self) -> WidgetProps;
     fn draw(&self, ui: &mut Ui, widget: &mut Widget);
+    fn draw_inspector(&self, ui: &mut Ui, widget: &mut Widget);
     fn emit_code(&self, widget: &Widget, origin: &str) -> String;
+    fn palette_icon(&self) -> &str;  // Emoji or icon for palette
 }
 
+/// Central registry - inspired by ECS entity management
 struct WidgetRegistry {
-    factories: HashMap<WidgetKind, Box<dyn WidgetFactory>>,
+    factories: HashMap<WidgetKind, Arc<dyn WidgetFactory>>,
+    categories: HashMap<WidgetCategory, Vec<WidgetKind>>,
+}
+
+impl WidgetRegistry {
+    pub fn register(&mut self, factory: impl WidgetFactory + 'static) { ... }
+    pub fn spawn(&self, kind: WidgetKind, pos: Pos2) -> Widget { ... }
+    pub fn draw(&self, ui: &mut Ui, widget: &mut Widget) { ... }
 }
 ```
+
+**Benefits (following Mobius patterns):**
+- Single point of widget definition (DRY)
+- Easy to add new widgets without touching core code
+- Enables future plugin/extension system
+- Categories auto-populate palette sections
 
 #### 9. Keyboard Shortcuts ✅ IMPLEMENTED
 All basic shortcuts now available:
@@ -270,17 +358,29 @@ Allow designing multiple screens/views that can be navigated between.
 - Dark/light theme preview
 - Export theme as separate struct
 
-#### 14. Additional Widgets (from TODO)
+#### 14. Additional Widgets (from TODO + egui demo + Mobius analysis)
 **Added:** TextArea, DragValue, Spinner, ColorPicker, Code, Heading, Image, Placeholder, Group, ScrollBox, Small, Monospace, TabBar, Columns, Window
 
 **Also added:** Tooltip property for all widgets
 
-**Still needed:**
-- Table/Grid widget
-- Plot/Chart widget (egui_plot integration)
-- Right-click context menu
-- Toolbar
-- Statusbar
+**Still needed (prioritized from egui demo analysis):**
+
+| Priority | Widget | Source | Notes |
+|----------|--------|--------|-------|
+| High | Table/Grid | egui_extras | Configurable striping, spacing (egui demo pattern) |
+| High | Plot/Chart | egui_plot | Common visualization need |
+| Medium | Toolbar | Mobius | ControlsPanel-style button row |
+| Medium | Statusbar | Mobius | EventLoggerPanel inspiration |
+| Medium | Right-click context menu | egui | Native egui support |
+| Medium | Image+Button combo | egui demo | Icon buttons with text |
+| Low | NodeGraph | egui_node_graph2 | From README TODO |
+| Low | TreeView | egui_ltreeview | From README TODO |
+
+**Widget Inspector Improvements (from egui demo):**
+- Add suffix display for Slider (e.g., "°" for angles)
+- Add speed config for DragValue
+- Add animated ProgressBar option
+- Add hint text for TextEdit (placeholder text)
 
 #### 15. Live Preview Mode
 Toggle between edit mode (current) and preview mode (interact with widgets without selection handles).
@@ -343,43 +443,92 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 2. Extract duplicated widget size constants
 3. Add basic unit tests
 4. Set up GitHub Actions CI
+5. **NEW:** Implement WidgetFactory trait and registry pattern (Mobius-inspired)
 
 ### Phase 2: Core UX Improvements *(High Priority from Issue #15)*
 1. ~~Add keyboard shortcuts~~ ✅
 2. ~~Add widget copy/paste~~ ✅
 3. ~~Z-order controls~~ ✅
 4. ~~Improved palette (scrollable, collapsible categories)~~ ✅
-5. Implement undo/redo
-6. Add native file save/load
+5. Implement undo/redo (Command pattern)
+6. Add native file save/load (`rfd` crate)
 7. Add error handling with user feedback
+8. **NEW:** Add `.on_hover_text()` tooltips throughout UI (egui best practice)
 
-### Phase 3: Alignment & Selection *(Top Priority from Issue #15)*
+### Phase 3: Alignment & Selection *(Top Priority from Issue #15 + Mobius)*
 1. Multi-select widgets (Shift+click, drag box)
 2. Alignment tools (left/center/right, top/middle/bottom)
 3. Distribution tools (horizontal/vertical spacing)
 4. Match sizes (width/height)
 5. Group/ungroup widgets
+6. **NEW:** Grid snapping with visual guides (Mobius-style)
 
-### Phase 4: Code Generation *(Priority from Issue #15)*
+### Phase 4: Code Generation *(Priority from Issue #15 + Mobius)*
 1. Real-time code generation while placing components
-2. Syntax highlighting in code preview (egui_syntax_highlighting or syntect)
+2. Syntax highlighting in code preview (`syntect` - same as Mobius)
 3. Generate idiomatic Rust code
 4. Option to generate separate files (state.rs, ui.rs, main.rs)
 5. Project scaffolding/skeleton generation
+6. **NEW:** Consider signals/slots pattern in generated code (Mobius `egui_mobius`)
 
-### Phase 5: Advanced Features
+### Phase 5: Architecture Evolution *(Inspired by Mobius-ECS)*
+1. **Two-tier separation:** Core library (`egui-rad-widgets`) + Builder app
+2. `egui_dock` integration for modular window architecture
+3. Optional ECS-based widget management for complex projects
+4. Template system for declarative UI definitions
+5. Hot-reload support for live development
+
+### Phase 6: Advanced Features
 1. Multi-page/screen support with navigation
 2. Plot/Chart widget (egui_plot integration)
-3. `egui_dock` integration for modular architecture
-4. Ingest and edit existing Rust/egui code
-5. Theming and styling options
-6. Live preview mode
+3. Ingest and edit existing Rust/egui code
+4. Theming and styling options (following egui demo patterns)
+5. Live preview mode (toggle edit handles on/off)
 
-### Phase 6: Polish
+### Phase 7: Polish & Ecosystem
 1. Project templates (settings dialog, login form, dashboard)
 2. Documentation and tutorials
 3. Performance optimization
 4. Accessibility improvements
+5. **NEW:** Community widget contributions (via WidgetFactory trait)
+
+---
+
+## Feature Comparison: egui-rad-builder vs Mobius-ECS
+
+| Feature | egui-rad-builder | Mobius-ECS | Notes |
+|---------|------------------|------------|-------|
+| **Core Framework** | Pure egui/eframe | bevy_ecs + egui | Mobius uses ECS for modularity |
+| **Widget Count** | 34 types | ~6 panel types | We have more widgets; Mobius focuses on architecture |
+| **Code Generation** | ✅ Complete apps | ✅ Complete apps | Both generate production-ready code |
+| **Visual Alignment** | ❌ Grid snap only | ✅ Full alignment tools | Priority gap to address |
+| **Docking System** | Panel-based | egui_dock | Consider egui_dock integration |
+| **Syntax Highlighting** | ❌ Plain text | ✅ syntect | Add syntect for code preview |
+| **Hot Reload** | ❌ | ✅ | Future consideration |
+| **Signals/Slots** | ❌ | ✅ egui_mobius | Event communication pattern |
+| **Template System** | ❌ | ✅ Declarative | Future phase |
+| **Project Structure** | Single app | Designer + Framework | Consider separation |
+| **Serialization** | ✅ JSON | ✅ | Both support project save/load |
+
+### Key Takeaways
+
+**Strengths of egui-rad-builder:**
+- More comprehensive widget library (34 vs ~6)
+- Simpler architecture (easier to understand/contribute)
+- Already has working code generation
+
+**Areas to Learn from Mobius:**
+- Visual alignment tools (top priority)
+- ECS-based widget registry pattern
+- Syntax highlighting with `syntect`
+- Two-tier architecture (library + app separation)
+- `egui_dock` for professional docking UI
+
+**Areas to Learn from egui Demo:**
+- Consistent `.on_hover_text()` documentation
+- Grid-based inspector layout
+- Scope isolation for grouped widgets
+- Progressive disclosure with CollapsingHeader
 
 ---
 
@@ -390,6 +539,8 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 3. Some `WidgetKind` arms in inspector use catch-all `_ => {}` that should be exhaustive
 4. Generated code uses `from_id_source()` which is deprecated in favor of `from_id_salt()`
 5. Tree widget parsing is duplicated between `draw_widget()` and `generate_code()`
+6. **NEW:** Consider adding `egui_dock` dependency for modular window management
+7. **NEW:** Consider `syntect` for syntax highlighting in code output
 
 ---
 
@@ -417,5 +568,16 @@ cargo doc --open   # Generate docs
 
 ---
 
+## Reference Links
+
+- **Mobius-ECS**: https://github.com/saturn77/mobius-ecs
+- **egui Demo**: https://www.egui.rs
+- **egui Widget Gallery Source**: https://github.com/emilk/egui/blob/main/crates/egui_demo_lib/src/demo/widget_gallery.rs
+- **egui Documentation**: https://docs.rs/egui/latest/egui/
+- **egui_dock**: https://github.com/Adanos020/egui_dock
+- **syntect**: https://github.com/trishume/syntect
+
+---
+
 *Last updated: 2025-12-26*
-*Analysis performed by Claude*
+*Analysis performed by Claude with design insights from mobius-ecs and egui demo*
