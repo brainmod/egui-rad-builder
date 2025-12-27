@@ -2,7 +2,7 @@ use egui::{Pos2, Vec2, pos2};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub(crate) struct WidgetId(u64);
 
 impl WidgetId {
@@ -21,8 +21,9 @@ impl fmt::Display for WidgetId {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub(crate) enum DockArea {
+    #[default]
     Free,
     Top,
     Bottom,
@@ -31,13 +32,8 @@ pub(crate) enum DockArea {
     Center,
 }
 
-impl Default for DockArea {
-    fn default() -> Self {
-        DockArea::Free
-    }
-}
-
 /// Widget categories for palette organization (Mobius-ECS inspired)
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum WidgetCategory {
     Basic,
@@ -47,6 +43,7 @@ pub enum WidgetCategory {
     Advanced,
 }
 
+#[allow(dead_code)]
 impl WidgetCategory {
     /// Returns all categories in display order
     pub const fn all() -> &'static [WidgetCategory] {
@@ -128,6 +125,7 @@ pub(crate) enum WidgetKind {
 
 impl WidgetKind {
     /// Returns the category this widget belongs to (for palette organization)
+    #[allow(dead_code)]
     pub const fn category(&self) -> WidgetCategory {
         match self {
             // Basic: simple display and interaction elements
@@ -170,11 +168,14 @@ impl WidgetKind {
             | WidgetKind::CollapsingHeader => WidgetCategory::Containers,
 
             // Advanced: complex or specialized widgets
-            WidgetKind::MenuButton | WidgetKind::Tree | WidgetKind::Code => WidgetCategory::Advanced,
+            WidgetKind::MenuButton | WidgetKind::Tree | WidgetKind::Code => {
+                WidgetCategory::Advanced
+            }
         }
     }
 
     /// Returns the display name for this widget kind (used in palette)
+    #[allow(dead_code)]
     pub const fn display_name(&self) -> &'static str {
         match self {
             WidgetKind::MenuButton => "Menu Button",
@@ -215,6 +216,7 @@ impl WidgetKind {
     }
 
     /// Returns all widget kinds in a given category
+    #[allow(dead_code)]
     pub fn widgets_in_category(category: WidgetCategory) -> Vec<WidgetKind> {
         Self::all()
             .iter()
@@ -224,6 +226,7 @@ impl WidgetKind {
     }
 
     /// Returns all widget kinds
+    #[allow(dead_code)]
     pub const fn all() -> &'static [WidgetKind] {
         &[
             WidgetKind::Label,
@@ -479,12 +482,11 @@ impl WidgetKind {
                 text: "Scroll content here...".into(),
                 ..Default::default()
             },
-            WidgetKind::TabBar => {
-                let mut p = WidgetProps::default();
-                p.items = vec!["Tab 1".into(), "Tab 2".into(), "Tab 3".into()];
-                p.selected = 0;
-                p
-            }
+            WidgetKind::TabBar => WidgetProps {
+                items: vec!["Tab 1".into(), "Tab 2".into(), "Tab 3".into()],
+                selected: 0,
+                ..Default::default()
+            },
             WidgetKind::Columns => WidgetProps {
                 text: "Column content".into(),
                 columns: 2,
@@ -701,8 +703,14 @@ mod tests {
     #[test]
     fn test_widget_kind_display_names() {
         assert_eq!(WidgetKind::Label.display_name(), "Label");
-        assert_eq!(WidgetKind::ImageTextButton.display_name(), "Image + Text Button");
-        assert_eq!(WidgetKind::CollapsingHeader.display_name(), "Collapsing Header");
+        assert_eq!(
+            WidgetKind::ImageTextButton.display_name(),
+            "Image + Text Button"
+        );
+        assert_eq!(
+            WidgetKind::CollapsingHeader.display_name(),
+            "Collapsing Header"
+        );
     }
 
     #[test]

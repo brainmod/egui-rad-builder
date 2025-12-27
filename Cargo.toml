@@ -13,5 +13,6 @@ chrono = "0.4.42"
 eframe = "0.33.0"
 egui = { version = "0.33", features = ["serde"] }
 egui_extras = { version = "0.33.0", features = ["chrono"] }
+rfd = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

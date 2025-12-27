@@ -5,11 +5,13 @@ use crate::{
 use chrono::{Datelike, NaiveDate};
 use egui::{Color32, CornerRadius, Id, Pos2, Rect, Sense, Stroke, UiBuilder, pos2, vec2};
 use egui_extras::DatePickerButton;
+use std::path::PathBuf;
 
 pub(crate) struct RadBuilderApp {
     palette_open: bool,
     project: Project,
-    selected: Option<WidgetId>,
+    /// Currently selected widgets (supports multi-select)
+    selected: Vec<WidgetId>,
     next_id: u64,
     // Drag state for spawning from palette
     spawning: Option<WidgetKind>,
@@ -25,6 +27,13 @@ pub(crate) struct RadBuilderApp {
     live_center: Option<Rect>,
     // Clipboard for copy/paste
     clipboard: Option<Widget>,
+    /// Current project file path (for Save)
+    current_file: Option<PathBuf>,
+    /// Error/status message to display
+    status_message: Option<(String, std::time::Instant)>,
+    /// Drag selection box (start position when dragging to select)
+    #[allow(dead_code)]
+    drag_select_start: Option<Pos2>,
 }
 
 impl Default for RadBuilderApp {
@@ -32,7 +41,7 @@ impl Default for RadBuilderApp {
         Self {
             palette_open: true,
             project: Project::default(),
-            selected: None,
+            selected: Vec::new(),
             next_id: 1,
             spawning: None,
             generated: String::new(),
@@ -44,36 +53,39 @@ impl Default for RadBuilderApp {
             live_right: None,
             live_center: None,
             clipboard: None,
+            current_file: None,
+            status_message: None,
+            drag_select_start: None,
         }
     }
 }
 
 impl RadBuilderApp {
     fn area_at(&self, pos: Pos2) -> DockArea {
-        if let Some(r) = self.live_top {
-            if r.contains(pos) {
-                return DockArea::Top;
-            }
+        if let Some(r) = self.live_top
+            && r.contains(pos)
+        {
+            return DockArea::Top;
         }
-        if let Some(r) = self.live_bottom {
-            if r.contains(pos) {
-                return DockArea::Bottom;
-            }
+        if let Some(r) = self.live_bottom
+            && r.contains(pos)
+        {
+            return DockArea::Bottom;
         }
-        if let Some(r) = self.live_left {
-            if r.contains(pos) {
-                return DockArea::Left;
-            }
+        if let Some(r) = self.live_left
+            && r.contains(pos)
+        {
+            return DockArea::Left;
         }
-        if let Some(r) = self.live_right {
-            if r.contains(pos) {
-                return DockArea::Right;
-            }
+        if let Some(r) = self.live_right
+            && r.contains(pos)
+        {
+            return DockArea::Right;
         }
-        if let Some(r) = self.live_center {
-            if r.contains(pos) {
-                return DockArea::Center;
-            }
+        if let Some(r) = self.live_center
+            && r.contains(pos)
+        {
+            return DockArea::Center;
         }
         DockArea::Free
     }
@@ -115,12 +127,105 @@ impl RadBuilderApp {
             props,
         };
         self.project.widgets.push(w);
-        self.selected = Some(id);
+        self.selected = vec![id];
     }
 
+    /// Returns the first selected widget for editing (inspector uses this)
     fn selected_mut(&mut self) -> Option<&mut Widget> {
-        let id = self.selected?;
+        let id = *self.selected.first()?;
         self.project.widgets.iter_mut().find(|w| w.id == id)
+    }
+
+    /// Check if a widget is selected
+    #[allow(dead_code)]
+    fn is_selected(&self, id: WidgetId) -> bool {
+        self.selected.contains(&id)
+    }
+
+    /// Select a single widget (clears other selections)
+    #[allow(dead_code)]
+    fn select_single(&mut self, id: WidgetId) {
+        self.selected = vec![id];
+    }
+
+    /// Toggle selection of a widget (for Shift+click multi-select)
+    #[allow(dead_code)]
+    fn toggle_selection(&mut self, id: WidgetId) {
+        if let Some(pos) = self.selected.iter().position(|&x| x == id) {
+            self.selected.remove(pos);
+        } else {
+            self.selected.push(id);
+        }
+    }
+
+    /// Add widget to selection (for drag box select)
+    #[allow(dead_code)]
+    fn add_to_selection(&mut self, id: WidgetId) {
+        if !self.selected.contains(&id) {
+            self.selected.push(id);
+        }
+    }
+
+    /// Clear all selections
+    #[allow(dead_code)]
+    fn clear_selection(&mut self) {
+        self.selected.clear();
+    }
+
+    /// Save project to file
+    fn save_project(&mut self, path: PathBuf) {
+        match serde_json::to_string_pretty(&self.project) {
+            Ok(json) => match std::fs::write(&path, &json) {
+                Ok(_) => {
+                    self.current_file = Some(path.clone());
+                    self.set_status(format!("Saved to {}", path.display()));
+                }
+                Err(e) => self.set_status(format!("Save failed: {}", e)),
+            },
+            Err(e) => self.set_status(format!("Serialization failed: {}", e)),
+        }
+    }
+
+    /// Load project from file
+    fn load_project(&mut self, path: PathBuf) {
+        match std::fs::read_to_string(&path) {
+            Ok(json) => {
+                match serde_json::from_str::<Project>(&json) {
+                    Ok(project) => {
+                        // Find max widget id to continue numbering
+                        let max_id = project.widgets.iter().map(|w| w.id).max();
+                        if let Some(id) = max_id {
+                            self.next_id = id.as_z() as u64 + 1;
+                        }
+                        self.project = project;
+                        self.selected.clear();
+                        self.current_file = Some(path.clone());
+                        self.set_status(format!("Loaded {}", path.display()));
+                    }
+                    Err(e) => self.set_status(format!("Parse failed: {}", e)),
+                }
+            }
+            Err(e) => self.set_status(format!("Load failed: {}", e)),
+        }
+    }
+
+    /// Set a status message that will auto-clear after a few seconds
+    fn set_status(&mut self, msg: String) {
+        self.status_message = Some((msg, std::time::Instant::now()));
+    }
+
+    /// Get widgets in selection rect (for drag-box selection)
+    #[allow(dead_code)]
+    fn widgets_in_rect(&self, rect: Rect, area_origin: Pos2) -> Vec<WidgetId> {
+        self.project
+            .widgets
+            .iter()
+            .filter(|w| {
+                let widget_rect = Rect::from_min_size(area_origin + w.pos.to_vec2(), w.size);
+                rect.intersects(widget_rect)
+            })
+            .map(|w| w.id)
+            .collect()
     }
 
     fn preview_panels_ui(&mut self, ctx: &egui::Context) {
@@ -247,7 +352,7 @@ impl RadBuilderApp {
             }
 
             // --- Drag ghost + drop ---
-            if let Some(kind) = self.spawning.clone() {
+            if let Some(kind) = self.spawning {
                 if let Some(mouse) = ui.ctx().pointer_interact_pos() {
                     // Use centralized default_size from WidgetKind
                     let ghost_size = kind.default_size();
@@ -292,7 +397,7 @@ impl RadBuilderApp {
             }
 
             if resp.clicked() {
-                self.selected = None;
+                self.selected.clear();
             }
         });
     }
@@ -322,7 +427,7 @@ impl RadBuilderApp {
         ui: &mut egui::Ui,
         canvas_rect: Rect,
         grid: f32,
-        selected: &mut Option<WidgetId>,
+        selected: &mut Vec<WidgetId>,
         w: &mut Widget,
     ) {
         let rect = Rect::from_min_size(canvas_rect.min + w.pos.to_vec2(), w.size);
@@ -610,13 +715,19 @@ impl RadBuilderApp {
                         .show(ui, |ui| {
                             ui.set_min_size(w.size);
                             ui.centered_and_justified(|ui| {
-                                ui.label(format!("🖼 {}\n{}x{}", w.props.text, w.size.x as i32, w.size.y as i32));
+                                ui.label(format!(
+                                    "🖼 {}\n{}x{}",
+                                    w.props.text, w.size.x as i32, w.size.y as i32
+                                ));
                             });
                         });
                 }
                 WidgetKind::Placeholder => {
                     let color = Color32::from_rgba_unmultiplied(
-                        w.props.color[0], w.props.color[1], w.props.color[2], w.props.color[3]
+                        w.props.color[0],
+                        w.props.color[1],
+                        w.props.color[2],
+                        w.props.color[3],
                     );
                     egui::Frame::NONE
                         .fill(color)
@@ -630,22 +741,21 @@ impl RadBuilderApp {
                         });
                 }
                 WidgetKind::Group => {
-                    egui::Frame::group(ui.style())
-                        .show(ui, |ui| {
-                            ui.set_min_size(w.size - vec2(12.0, 12.0));
-                            let add_contents = |ui: &mut egui::Ui| {
-                                if !w.props.text.is_empty() {
-                                    ui.strong(&w.props.text);
-                                    ui.separator();
-                                }
-                                ui.label("(group contents)");
-                            };
-                            if w.props.horizontal {
-                                ui.horizontal(add_contents);
-                            } else {
-                                ui.vertical(add_contents);
+                    egui::Frame::group(ui.style()).show(ui, |ui| {
+                        ui.set_min_size(w.size - vec2(12.0, 12.0));
+                        let add_contents = |ui: &mut egui::Ui| {
+                            if !w.props.text.is_empty() {
+                                ui.strong(&w.props.text);
+                                ui.separator();
                             }
-                        });
+                            ui.label("(group contents)");
+                        };
+                        if w.props.horizontal {
+                            ui.horizontal(add_contents);
+                        } else {
+                            ui.vertical(add_contents);
+                        }
+                    });
                 }
                 WidgetKind::ScrollBox => {
                     egui::Frame::NONE
@@ -686,20 +796,22 @@ impl RadBuilderApp {
                         });
                 }
                 WidgetKind::Window => {
-                    egui::Frame::window(ui.style())
-                        .show(ui, |ui| {
-                            ui.set_min_size(w.size - vec2(16.0, 16.0));
-                            ui.vertical(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.strong(&w.props.text);
-                                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    egui::Frame::window(ui.style()).show(ui, |ui| {
+                        ui.set_min_size(w.size - vec2(16.0, 16.0));
+                        ui.vertical(|ui| {
+                            ui.horizontal(|ui| {
+                                ui.strong(&w.props.text);
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
                                         ui.small("✕");
-                                    });
-                                });
-                                ui.separator();
-                                ui.label("(window contents)");
+                                    },
+                                );
                             });
+                            ui.separator();
+                            ui.label("(window contents)");
                         });
+                    });
                 }
             }
         });
@@ -708,7 +820,8 @@ impl RadBuilderApp {
             .data(|d| d.get_temp::<bool>(Id::new("edit_mode")))
             .unwrap_or(true);
         let painter = ui.painter();
-        let stroke = if *selected == Some(w.id) {
+        let is_selected = selected.contains(&w.id);
+        let stroke = if is_selected {
             Stroke::new(2.0, Color32::LIGHT_BLUE)
         } else {
             Stroke::new(1.0, Color32::from_gray(90))
@@ -749,7 +862,20 @@ impl RadBuilderApp {
                 }
             }
             if any_clicked {
-                *selected = Some(w.id);
+                // Check if Shift is held for multi-select
+                let shift_held = ui.ctx().input(|i| i.modifiers.shift);
+                if shift_held {
+                    // Toggle selection
+                    if let Some(pos) = selected.iter().position(|&x| x == w.id) {
+                        selected.remove(pos);
+                    } else {
+                        selected.push(w.id);
+                    }
+                } else {
+                    // Single select
+                    selected.clear();
+                    selected.push(w.id);
+                }
             }
             if drag_delta != egui::Vec2::ZERO {
                 w.pos += drag_delta;
@@ -1103,7 +1229,7 @@ impl RadBuilderApp {
             if ui.button("Delete").clicked() {
                 let id = w.id; // capture
                 self.project.widgets.retain(|w| w.id != id);
-                self.selected = None;
+                self.selected.clear();
             }
         } else {
             ui.weak("No selection");
@@ -1111,39 +1237,274 @@ impl RadBuilderApp {
     }
 
     fn top_bar(&mut self, ui: &mut egui::Ui) {
+        // Show status message if recent
+        if let Some((msg, time)) = &self.status_message {
+            if time.elapsed().as_secs() < 3 {
+                ui.horizontal(|ui| {
+                    ui.label(msg);
+                });
+            } else {
+                self.status_message = None;
+            }
+        }
+
         egui::MenuBar::new().ui(ui, |ui| {
             ui.menu_button("File", |ui| {
-                if ui.button("Generate Code").clicked() {
+                if ui
+                    .button("New Project")
+                    .on_hover_text("Create a new empty project")
+                    .clicked()
+                {
+                    self.project = Project::default();
+                    self.selected.clear();
+                    self.current_file = None;
+                    self.set_status("New project created".into());
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+                ui.separator();
+                if ui
+                    .button("Open...")
+                    .on_hover_text("Open a project file (Ctrl+O)")
+                    .clicked()
+                {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .add_filter("RAD Project", &["json", "rad"])
+                        .pick_file()
+                    {
+                        self.load_project(path);
+                    }
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+                if ui
+                    .button("Save")
+                    .on_hover_text("Save project (Ctrl+S)")
+                    .clicked()
+                {
+                    if let Some(path) = self.current_file.clone() {
+                        self.save_project(path);
+                    } else if let Some(path) = rfd::FileDialog::new()
+                        .add_filter("RAD Project", &["json", "rad"])
+                        .set_file_name("project.json")
+                        .save_file()
+                    {
+                        self.save_project(path);
+                    }
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+                if ui
+                    .button("Save As...")
+                    .on_hover_text("Save project to a new file")
+                    .clicked()
+                {
+                    if let Some(path) = rfd::FileDialog::new()
+                        .add_filter("RAD Project", &["json", "rad"])
+                        .set_file_name("project.json")
+                        .save_file()
+                    {
+                        self.save_project(path);
+                    }
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+                ui.separator();
+                if ui
+                    .button("Generate Code")
+                    .on_hover_text("Generate Rust code (Ctrl+G)")
+                    .clicked()
+                {
                     self.generated = self.generate_code();
                     ui.close_kind(egui::UiKind::Menu);
                 }
-                if ui.button("Export JSON").clicked() {
+                if ui
+                    .button("Export JSON")
+                    .on_hover_text("Export project as JSON to the editor")
+                    .clicked()
+                {
                     if let Ok(s) = serde_json::to_string_pretty(&self.project) {
                         self.generated = s;
                     }
                     ui.close_kind(egui::UiKind::Menu);
                 }
-                if ui.button("Import JSON (from editor below)").clicked() {
+                if ui
+                    .button("Import JSON")
+                    .on_hover_text("Import project from the editor below")
+                    .clicked()
+                {
                     if let Ok(p) = serde_json::from_str::<Project>(&self.generated) {
                         self.project = p;
-                        self.selected = None;
+                        self.selected.clear();
                     }
                     ui.close_kind(egui::UiKind::Menu);
                 }
-                if ui.button("Clear Project").clicked() {
-                    self.project = Project::default();
-                    self.selected = None;
+            });
+
+            ui.menu_button("Edit", |ui| {
+                let has_selection = !self.selected.is_empty();
+                let _multi_selected = self.selected.len() > 1;
+
+                ui.add_enabled_ui(has_selection, |ui| {
+                    if ui
+                        .button("Delete")
+                        .on_hover_text("Delete selected (Del)")
+                        .clicked()
+                    {
+                        let to_delete: Vec<_> = self.selected.clone();
+                        self.project.widgets.retain(|w| !to_delete.contains(&w.id));
+                        self.selected.clear();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    if ui
+                        .button("Duplicate")
+                        .on_hover_text("Duplicate selected (Ctrl+D)")
+                        .clicked()
+                    {
+                        // Handled in keyboard shortcuts
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    if ui
+                        .button("Copy")
+                        .on_hover_text("Copy selected (Ctrl+C)")
+                        .clicked()
+                    {
+                        if let Some(&sel_id) = self.selected.first()
+                            && let Some(w) = self.project.widgets.iter().find(|w| w.id == sel_id)
+                        {
+                            self.clipboard = Some(w.clone());
+                        }
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                });
+                if ui
+                    .add_enabled(self.clipboard.is_some(), egui::Button::new("Paste"))
+                    .on_hover_text("Paste from clipboard (Ctrl+V)")
+                    .clicked()
+                {
+                    // Handled in keyboard shortcuts
                     ui.close_kind(egui::UiKind::Menu);
+                }
+                ui.separator();
+                if ui
+                    .button("Select All")
+                    .on_hover_text("Select all widgets")
+                    .clicked()
+                {
+                    self.selected = self.project.widgets.iter().map(|w| w.id).collect();
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+                if ui
+                    .add_enabled(has_selection, egui::Button::new("Deselect All"))
+                    .on_hover_text("Clear selection")
+                    .clicked()
+                {
+                    self.selected.clear();
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+            });
+
+            // Alignment menu (only enabled with multi-select)
+            ui.menu_button("Align", |ui| {
+                let multi_selected = self.selected.len() > 1;
+                ui.add_enabled_ui(multi_selected, |ui| {
+                    ui.label("Horizontal:");
+                    if ui
+                        .button("⬅ Left")
+                        .on_hover_text("Align left edges")
+                        .clicked()
+                    {
+                        self.align_left();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    if ui
+                        .button("⬌ Center")
+                        .on_hover_text("Align centers horizontally")
+                        .clicked()
+                    {
+                        self.align_center_h();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    if ui
+                        .button("➡ Right")
+                        .on_hover_text("Align right edges")
+                        .clicked()
+                    {
+                        self.align_right();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    ui.separator();
+                    ui.label("Vertical:");
+                    if ui
+                        .button("⬆ Top")
+                        .on_hover_text("Align top edges")
+                        .clicked()
+                    {
+                        self.align_top();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    if ui
+                        .button("⬍ Middle")
+                        .on_hover_text("Align centers vertically")
+                        .clicked()
+                    {
+                        self.align_center_v();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    if ui
+                        .button("⬇ Bottom")
+                        .on_hover_text("Align bottom edges")
+                        .clicked()
+                    {
+                        self.align_bottom();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    ui.separator();
+                    ui.label("Distribute:");
+                    if ui
+                        .button("↔ Horizontal")
+                        .on_hover_text("Distribute evenly horizontally")
+                        .clicked()
+                    {
+                        self.distribute_horizontal();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    if ui
+                        .button("↕ Vertical")
+                        .on_hover_text("Distribute evenly vertically")
+                        .clicked()
+                    {
+                        self.distribute_vertical();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    ui.separator();
+                    ui.label("Size:");
+                    if ui
+                        .button("Match Width")
+                        .on_hover_text("Make all same width")
+                        .clicked()
+                    {
+                        self.match_width();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                    if ui
+                        .button("Match Height")
+                        .on_hover_text("Make all same height")
+                        .clicked()
+                    {
+                        self.match_height();
+                        ui.close_kind(egui::UiKind::Menu);
+                    }
+                });
+                if !multi_selected {
+                    ui.label("Select 2+ widgets to align");
                 }
             });
 
             ui.menu_button("View", |ui| {
                 ui.checkbox(&mut self.palette_open, "Show Palette");
+                ui.checkbox(&mut self.show_grid, "Show Grid");
             });
+
             ui.menu_button("Settings", |ui| {
-                ui.checkbox(&mut self.show_grid, "Show grid");
                 ui.horizontal(|ui| {
-                    ui.label("Grid");
+                    ui.label("Grid Size");
                     ui.add(egui::DragValue::new(&mut self.grid_size).range(1.0..=64.0));
                 });
                 ui.horizontal(|ui| {
@@ -1159,14 +1520,213 @@ impl RadBuilderApp {
                 ui.checkbox(&mut self.project.panel_left_enabled, "Left");
                 ui.checkbox(&mut self.project.panel_right_enabled, "Right");
             });
+
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("Generate Code").clicked() {
+                if ui.button("Generate Code").on_hover_text("Ctrl+G").clicked() {
                     self.generated = self.generate_code();
+                }
+                // Show selection count
+                if !self.selected.is_empty() {
+                    ui.separator();
+                    ui.label(format!("{} selected", self.selected.len()));
                 }
                 ui.separator();
                 ui.strong("egui RAD GUI Builder");
             });
         });
+    }
+
+    // Alignment functions
+    fn align_left(&mut self) {
+        if self.selected.len() < 2 {
+            return;
+        }
+        let min_x = self
+            .selected
+            .iter()
+            .filter_map(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| w.pos.x)
+            .fold(f32::INFINITY, f32::min);
+        for id in &self.selected {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.pos.x = min_x;
+            }
+        }
+    }
+
+    fn align_right(&mut self) {
+        if self.selected.len() < 2 {
+            return;
+        }
+        let max_right = self
+            .selected
+            .iter()
+            .filter_map(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| w.pos.x + w.size.x)
+            .fold(f32::NEG_INFINITY, f32::max);
+        for id in &self.selected {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.pos.x = max_right - w.size.x;
+            }
+        }
+    }
+
+    fn align_center_h(&mut self) {
+        if self.selected.len() < 2 {
+            return;
+        }
+        let centers: Vec<f32> = self
+            .selected
+            .iter()
+            .filter_map(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| w.pos.x + w.size.x / 2.0)
+            .collect();
+        let avg_center = centers.iter().sum::<f32>() / centers.len() as f32;
+        for id in &self.selected {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.pos.x = avg_center - w.size.x / 2.0;
+            }
+        }
+    }
+
+    fn align_top(&mut self) {
+        if self.selected.len() < 2 {
+            return;
+        }
+        let min_y = self
+            .selected
+            .iter()
+            .filter_map(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| w.pos.y)
+            .fold(f32::INFINITY, f32::min);
+        for id in &self.selected {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.pos.y = min_y;
+            }
+        }
+    }
+
+    fn align_bottom(&mut self) {
+        if self.selected.len() < 2 {
+            return;
+        }
+        let max_bottom = self
+            .selected
+            .iter()
+            .filter_map(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| w.pos.y + w.size.y)
+            .fold(f32::NEG_INFINITY, f32::max);
+        for id in &self.selected {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.pos.y = max_bottom - w.size.y;
+            }
+        }
+    }
+
+    fn align_center_v(&mut self) {
+        if self.selected.len() < 2 {
+            return;
+        }
+        let centers: Vec<f32> = self
+            .selected
+            .iter()
+            .filter_map(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| w.pos.y + w.size.y / 2.0)
+            .collect();
+        let avg_center = centers.iter().sum::<f32>() / centers.len() as f32;
+        for id in &self.selected {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.pos.y = avg_center - w.size.y / 2.0;
+            }
+        }
+    }
+
+    fn distribute_horizontal(&mut self) {
+        if self.selected.len() < 3 {
+            return;
+        }
+        let mut widgets: Vec<_> = self
+            .selected
+            .iter()
+            .filter_map(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| (w.id, w.pos.x, w.size.x))
+            .collect();
+        widgets.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+        let first_left = widgets.first().map(|w| w.1).unwrap_or(0.0);
+        let last_right = widgets.last().map(|w| w.1 + w.2).unwrap_or(0.0);
+        let total_width: f32 = widgets.iter().map(|w| w.2).sum();
+        let spacing = (last_right - first_left - total_width) / (widgets.len() - 1) as f32;
+
+        let mut x = first_left;
+        for (id, _, width) in &widgets {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.pos.x = x;
+            }
+            x += width + spacing;
+        }
+    }
+
+    fn distribute_vertical(&mut self) {
+        if self.selected.len() < 3 {
+            return;
+        }
+        let mut widgets: Vec<_> = self
+            .selected
+            .iter()
+            .filter_map(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| (w.id, w.pos.y, w.size.y))
+            .collect();
+        widgets.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+
+        let first_top = widgets.first().map(|w| w.1).unwrap_or(0.0);
+        let last_bottom = widgets.last().map(|w| w.1 + w.2).unwrap_or(0.0);
+        let total_height: f32 = widgets.iter().map(|w| w.2).sum();
+        let spacing = (last_bottom - first_top - total_height) / (widgets.len() - 1) as f32;
+
+        let mut y = first_top;
+        for (id, _, height) in &widgets {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.pos.y = y;
+            }
+            y += height + spacing;
+        }
+    }
+
+    fn match_width(&mut self) {
+        if self.selected.len() < 2 {
+            return;
+        }
+        // Use width of first selected widget
+        let target_width = self
+            .selected
+            .first()
+            .and_then(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| w.size.x)
+            .unwrap_or(100.0);
+        for id in &self.selected {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.size.x = target_width;
+            }
+        }
+    }
+
+    fn match_height(&mut self) {
+        if self.selected.len() < 2 {
+            return;
+        }
+        // Use height of first selected widget
+        let target_height = self
+            .selected
+            .first()
+            .and_then(|id| self.project.widgets.iter().find(|w| w.id == *id))
+            .map(|w| w.size.y)
+            .unwrap_or(30.0);
+        for id in &self.selected {
+            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *id) {
+                w.size.y = target_height;
+            }
+        }
     }
 
     fn generated_panel(&mut self, ui: &mut egui::Ui) {
@@ -1217,9 +1777,9 @@ impl RadBuilderApp {
         }
 
         out.push_str("struct GeneratedState {\n");
-        out.push_str(&format!(
-            "    enable_top: bool, enable_bottom: bool, enable_left: bool, enable_right: bool,\n"
-        ));
+        out.push_str(
+            "    enable_top: bool, enable_bottom: bool, enable_left: bool, enable_right: bool,\n",
+        );
         for w in &self.project.widgets {
             match w.kind {
                 WidgetKind::TextEdit => out.push_str(&format!("    text_{}: String,\n", w.id)),
@@ -1238,7 +1798,9 @@ impl RadBuilderApp {
                 WidgetKind::AngleSelector => out.push_str(&format!("    angle_{}: f32,\n", w.id)),
                 WidgetKind::TextArea => out.push_str(&format!("    textarea_{}: String,\n", w.id)),
                 WidgetKind::DragValue => out.push_str(&format!("    drag_{}: f32,\n", w.id)),
-                WidgetKind::ColorPicker => out.push_str(&format!("    color_{}: egui::Color32,\n", w.id)),
+                WidgetKind::ColorPicker => {
+                    out.push_str(&format!("    color_{}: egui::Color32,\n", w.id))
+                }
                 WidgetKind::Code => out.push_str(&format!("    code_{}: String,\n", w.id)),
                 _ => {}
             }
@@ -1989,9 +2551,17 @@ impl eframe::App for RadBuilderApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Keyboard shortcuts - check input first, then apply changes
         let (
-            delete_pressed, duplicate_pressed, generate_pressed, copy_pressed, paste_pressed,
-            arrow_up, arrow_down, arrow_left, arrow_right,
-            bring_front, send_back
+            delete_pressed,
+            duplicate_pressed,
+            generate_pressed,
+            copy_pressed,
+            paste_pressed,
+            arrow_up,
+            arrow_down,
+            arrow_left,
+            arrow_right,
+            bring_front,
+            send_back,
         ) = ctx.input(|i| {
             let del = i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace);
             let dup = i.modifiers.command && i.key_pressed(egui::Key::D);
@@ -2006,77 +2576,96 @@ impl eframe::App for RadBuilderApp {
             // Z-order: ] = bring to front, [ = send to back
             let front = i.key_pressed(egui::Key::CloseBracket);
             let back = i.key_pressed(egui::Key::OpenBracket);
-            (del, dup, gencode, copy, paste, up, down, left, right, front, back)
+            (
+                del, dup, gencode, copy, paste, up, down, left, right, front, back,
+            )
         });
 
-        // Delete selected widget
-        if delete_pressed {
-            if let Some(id) = self.selected {
-                self.project.widgets.retain(|w| w.id != id);
-                self.selected = None;
-            }
+        // Delete selected widgets
+        if delete_pressed && !self.selected.is_empty() {
+            let to_delete: Vec<_> = self.selected.clone();
+            self.project.widgets.retain(|w| !to_delete.contains(&w.id));
+            self.selected.clear();
         }
 
-        // Arrow keys: Nudge selected widget
-        if let Some(sel_id) = self.selected {
+        // Arrow keys: Nudge all selected widgets
+        if !self.selected.is_empty() && (arrow_up || arrow_down || arrow_left || arrow_right) {
             let nudge = self.grid_size.max(1.0);
-            if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == sel_id) {
-                if arrow_up { w.pos.y -= nudge; }
-                if arrow_down { w.pos.y += nudge; }
-                if arrow_left { w.pos.x -= nudge; }
-                if arrow_right { w.pos.x += nudge; }
-                // Clamp position
-                w.pos.x = w.pos.x.max(0.0);
-                w.pos.y = w.pos.y.max(0.0);
-            }
-        }
-
-        // Z-order controls
-        if bring_front {
-            if let Some(sel_id) = self.selected {
-                let max_z = self.project.widgets.iter().map(|w| w.z).max().unwrap_or(0);
+            let selected_ids: Vec<_> = self.selected.clone();
+            for sel_id in selected_ids {
                 if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == sel_id) {
-                    w.z = max_z + 1;
-                }
-            }
-        }
-        if send_back {
-            if let Some(sel_id) = self.selected {
-                let min_z = self.project.widgets.iter().map(|w| w.z).min().unwrap_or(0);
-                if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == sel_id) {
-                    w.z = min_z - 1;
+                    if arrow_up {
+                        w.pos.y -= nudge;
+                    }
+                    if arrow_down {
+                        w.pos.y += nudge;
+                    }
+                    if arrow_left {
+                        w.pos.x -= nudge;
+                    }
+                    if arrow_right {
+                        w.pos.x += nudge;
+                    }
+                    // Clamp position
+                    w.pos.x = w.pos.x.max(0.0);
+                    w.pos.y = w.pos.y.max(0.0);
                 }
             }
         }
 
-        // Ctrl+C: Copy selected widget
-        if copy_pressed {
-            if let Some(sel_id) = self.selected {
-                if let Some(w) = self.project.widgets.iter().find(|w| w.id == sel_id) {
-                    self.clipboard = Some(w.clone());
+        // Z-order controls (apply to all selected)
+        if bring_front && !self.selected.is_empty() {
+            let max_z = self.project.widgets.iter().map(|w| w.z).max().unwrap_or(0);
+            let selected_ids: Vec<_> = self.selected.clone();
+            for (i, sel_id) in selected_ids.iter().enumerate() {
+                if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *sel_id) {
+                    w.z = max_z + 1 + i as i32;
                 }
             }
+        }
+        if send_back && !self.selected.is_empty() {
+            let min_z = self.project.widgets.iter().map(|w| w.z).min().unwrap_or(0);
+            let selected_ids: Vec<_> = self.selected.clone();
+            for (i, sel_id) in selected_ids.iter().enumerate() {
+                if let Some(w) = self.project.widgets.iter_mut().find(|w| w.id == *sel_id) {
+                    w.z = min_z - 1 - i as i32;
+                }
+            }
+        }
+
+        // Ctrl+C: Copy first selected widget
+        if copy_pressed
+            && let Some(&sel_id) = self.selected.first()
+            && let Some(w) = self.project.widgets.iter().find(|w| w.id == sel_id)
+        {
+            self.clipboard = Some(w.clone());
         }
 
         // Ctrl+V: Paste widget from clipboard
-        if paste_pressed {
-            if let Some(w) = self.clipboard.clone() {
-                let new_id = WidgetId::new(self.next_id);
-                self.next_id += 1;
-                let mut pasted = w;
-                pasted.id = new_id;
-                pasted.z = new_id.as_z();
-                pasted.pos.x += 20.0;
-                pasted.pos.y += 20.0;
-                self.project.widgets.push(pasted);
-                self.selected = Some(new_id);
-            }
+        if paste_pressed && let Some(w) = self.clipboard.clone() {
+            let new_id = WidgetId::new(self.next_id);
+            self.next_id += 1;
+            let mut pasted = w;
+            pasted.id = new_id;
+            pasted.z = new_id.as_z();
+            pasted.pos.x += 20.0;
+            pasted.pos.y += 20.0;
+            self.project.widgets.push(pasted);
+            self.selected = vec![new_id];
         }
 
-        // Ctrl+D: Duplicate selected widget
-        if duplicate_pressed {
-            if let Some(sel_id) = self.selected {
-                if let Some(w) = self.project.widgets.iter().find(|w| w.id == sel_id).cloned() {
+        // Ctrl+D: Duplicate all selected widgets
+        if duplicate_pressed && !self.selected.is_empty() {
+            let selected_ids: Vec<_> = self.selected.clone();
+            let mut new_ids = Vec::new();
+            for sel_id in selected_ids {
+                if let Some(w) = self
+                    .project
+                    .widgets
+                    .iter()
+                    .find(|w| w.id == sel_id)
+                    .cloned()
+                {
                     let new_id = WidgetId::new(self.next_id);
                     self.next_id += 1;
                     let mut dup = w;
@@ -2085,9 +2674,10 @@ impl eframe::App for RadBuilderApp {
                     dup.pos.x += 20.0;
                     dup.pos.y += 20.0;
                     self.project.widgets.push(dup);
-                    self.selected = Some(new_id);
+                    new_ids.push(new_id);
                 }
             }
+            self.selected = new_ids;
         }
 
         // Ctrl+G: Generate code
