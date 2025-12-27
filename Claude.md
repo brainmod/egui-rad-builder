@@ -81,6 +81,13 @@ The official egui demo showcases best practices for widget organization and UX p
 
 ## Recent Changes (2025-12-27)
 
+### Phase 6 Feature: Live Preview Mode
+- **Preview mode toggle** - F5 or View menu to switch between Edit and Preview modes
+- **Toolbar indicator** - Color-coded Edit/Preview button shows current mode
+- **Selection handles hidden** - In preview mode, no selection boxes or resize handles
+- **Widget interaction** - Interact with widgets (click buttons, type in text fields) in preview mode
+- **Shortcuts updated** - Added F5 to palette shortcuts list
+
 ### Phase 4 Implementation (Code Generation)
 - **Syntax highlighting** - Added `syntect` crate for Rust code highlighting in code preview
 - **Highlighter module** - New `src/highlight.rs` with `Highlighter` struct and `layout_job()` method
@@ -144,6 +151,7 @@ The official egui demo showcases best practices for widget organization and UX p
 | `]` | Bring widget to front (z-order) |
 | `[` | Send widget to back (z-order) |
 | `Ctrl+G` | Generate code |
+| `F5` | Toggle Preview/Edit mode |
 
 ### UX Improvements
 - Widget clipboard for copy/paste operations
@@ -417,8 +425,10 @@ Allow designing multiple screens/views that can be navigated between.
 - Add animated ProgressBar option
 - Add hint text for TextEdit (placeholder text)
 
-#### 15. Live Preview Mode
+#### 15. Live Preview Mode ✅ IMPLEMENTED
 Toggle between edit mode (current) and preview mode (interact with widgets without selection handles).
+- F5 keyboard shortcut or View > Preview Mode menu item
+- Toolbar shows Edit/Preview indicator with toggle button
 
 #### 16. Code Generation Improvements
 - Generate idiomatic Rust (not string concatenation)
@@ -518,7 +528,7 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 2. Plot/Chart widget (egui_plot integration)
 3. Ingest and edit existing Rust/egui code
 4. Theming and styling options (following egui demo patterns)
-5. Live preview mode (toggle edit handles on/off)
+5. ✅ Live preview mode (toggle edit handles on/off)
 
 ### Phase 7: Polish & Ecosystem
 1. Project templates (settings dialog, login form, dashboard)
@@ -540,6 +550,7 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 | **Docking System** | Panel-based | egui_dock | Consider egui_dock integration |
 | **Syntax Highlighting** | ✅ syntect | ✅ syntect | Feature parity achieved |
 | **Hot Reload** | ❌ | ✅ | Future consideration |
+| **Live Preview** | ✅ F5 toggle | ❌ | Test widgets without handles |
 | **Signals/Slots** | ❌ | ✅ egui_mobius | Event communication pattern |
 | **Template System** | ❌ | ✅ Declarative | Future phase |
 | **Project Structure** | Single app | Designer + Framework | Consider separation |

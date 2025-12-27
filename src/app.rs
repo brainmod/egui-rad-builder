@@ -67,6 +67,8 @@ pub(crate) struct RadBuilderApp {
     codegen_format: CodeGenFormat,
     /// Add comments to generated code
     codegen_comments: bool,
+    /// Preview mode: interact with widgets without selection handles
+    preview_mode: bool,
 }
 
 impl Default for RadBuilderApp {
@@ -94,6 +96,7 @@ impl Default for RadBuilderApp {
             auto_generate: false,
             codegen_format: CodeGenFormat::default(),
             codegen_comments: true,
+            preview_mode: false,
         }
     }
 }
@@ -1031,6 +1034,7 @@ impl RadBuilderApp {
                         ui.small("Ctrl+D: duplicate");
                         ui.small("] / [: z-order");
                         ui.small("Ctrl+G: generate");
+                        ui.small("F5: toggle preview");
                     });
             });
     }
@@ -1540,6 +1544,9 @@ impl RadBuilderApp {
                 ui.checkbox(&mut self.show_grid, "Show Grid");
                 ui.checkbox(&mut self.syntax_highlighting, "Syntax Highlighting")
                     .on_hover_text("Enable syntax highlighting in code output");
+                ui.separator();
+                ui.checkbox(&mut self.preview_mode, "Preview Mode (F5)")
+                    .on_hover_text("Toggle preview mode: interact with widgets without selection handles");
             });
 
             ui.menu_button("Settings", |ui| {
@@ -1593,6 +1600,24 @@ impl RadBuilderApp {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Generate Code").on_hover_text("Ctrl+G").clicked() {
                     self.generated = self.generate_code();
+                }
+                // Preview/Edit mode toggle button
+                ui.separator();
+                let mode_label = if self.preview_mode { "Preview" } else { "Edit" };
+                let mode_color = if self.preview_mode {
+                    Color32::from_rgb(100, 180, 100) // Green for preview
+                } else {
+                    Color32::from_rgb(100, 160, 255) // Blue for edit
+                };
+                if ui
+                    .add(
+                        egui::Button::new(egui::RichText::new(mode_label).color(mode_color))
+                            .min_size(vec2(60.0, 0.0)),
+                    )
+                    .on_hover_text("Toggle Preview/Edit mode (F5)")
+                    .clicked()
+                {
+                    self.preview_mode = !self.preview_mode;
                 }
                 // Show selection count
                 if !self.selected.is_empty() {
@@ -2801,6 +2826,7 @@ impl eframe::App for RadBuilderApp {
             arrow_right,
             bring_front,
             send_back,
+            toggle_preview,
         ) = ctx.input(|i| {
             let del = i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace);
             let dup = i.modifiers.command && i.key_pressed(egui::Key::D);
@@ -2815,10 +2841,17 @@ impl eframe::App for RadBuilderApp {
             // Z-order: ] = bring to front, [ = send to back
             let front = i.key_pressed(egui::Key::CloseBracket);
             let back = i.key_pressed(egui::Key::OpenBracket);
+            // F5: Toggle preview mode
+            let preview = i.key_pressed(egui::Key::F5);
             (
-                del, dup, gencode, copy, paste, up, down, left, right, front, back,
+                del, dup, gencode, copy, paste, up, down, left, right, front, back, preview,
             )
         });
+
+        // F5: Toggle preview mode
+        if toggle_preview {
+            self.preview_mode = !self.preview_mode;
+        }
 
         // Delete selected widgets
         if delete_pressed && !self.selected.is_empty() {
@@ -2939,6 +2972,9 @@ impl eframe::App for RadBuilderApp {
                 ui.separator();
                 self.generated_panel(ui);
             });
+
+        // Set edit mode for widget rendering (inverse of preview mode)
+        ctx.data_mut(|d| d.insert_temp(Id::new("edit_mode"), !self.preview_mode));
 
         self.preview_panels_ui(ctx);
 
