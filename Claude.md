@@ -86,6 +86,11 @@ The official egui demo showcases best practices for widget organization and UX p
 - **Highlighter module** - New `src/highlight.rs` with `Highlighter` struct and `layout_job()` method
 - **Auto-generate toggle** - Settings > Code Generation > "Auto-generate code" option
 - **View menu option** - Toggle syntax highlighting on/off for performance
+- **Code generation formats** - `CodeGenFormat` enum with Single File, Separate Files, UI Only modes
+- **Separate files mode** - Shows Cargo.toml + main.rs with clear file headers
+- **UI Only mode** - Extracts just the UI function for embedding in existing apps
+- **Include comments** - Toggle to add explanatory comments to generated code
+- **Improved formatting** - Better indentation and structure in generated code
 - **16 unit tests** - Added 3 highlighter tests (16 total)
 
 ### Phase 2 & 3 Implementation
@@ -493,12 +498,12 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 5. Group/ungroup widgets - *Deferred*
 6. ~~Grid snapping with visual guides~~ ✅ Grid display with configurable size
 
-### Phase 4: Code Generation *(Priority from Issue #15 + Mobius)* ✅ PARTIAL
+### Phase 4: Code Generation *(Priority from Issue #15 + Mobius)* ✅ MOSTLY COMPLETE
 1. ~~Real-time code generation while placing components~~ ✅ Auto-generate toggle in Settings
 2. ~~Syntax highlighting in code preview (`syntect` - same as Mobius)~~ ✅ Toggle in View menu
-3. Generate idiomatic Rust code - *In progress*
-4. Option to generate separate files (state.rs, ui.rs, main.rs) - *Planned*
-5. Project scaffolding/skeleton generation - *Planned*
+3. ~~Generate idiomatic Rust code~~ ✅ Better formatting, proper indentation
+4. ~~Option to generate separate files~~ ✅ CodeGenFormat enum (Single File, Separate Files, UI Only)
+5. ~~Project scaffolding/skeleton generation~~ ✅ Cargo.toml generation in Separate Files mode
 6. **NEW:** Consider signals/slots pattern in generated code (Mobius `egui_mobius`) - *Planned*
 
 ### Phase 5: Architecture Evolution *(Inspired by Mobius-ECS)*
