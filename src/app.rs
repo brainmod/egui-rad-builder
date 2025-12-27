@@ -69,6 +69,8 @@ pub(crate) struct RadBuilderApp {
     codegen_comments: bool,
     /// Preview mode: interact with widgets without selection handles
     preview_mode: bool,
+    /// Active tab in the right panel (0 = Inspector, 1 = Code Output)
+    right_panel_tab: usize,
 }
 
 impl Default for RadBuilderApp {
@@ -97,6 +99,7 @@ impl Default for RadBuilderApp {
             codegen_format: CodeGenFormat::default(),
             codegen_comments: true,
             preview_mode: false,
+            right_panel_tab: 0,
         }
     }
 }
@@ -2968,9 +2971,28 @@ impl eframe::App for RadBuilderApp {
         egui::SidePanel::right("inspector")
             .default_width(260.0)
             .show(ctx, |ui| {
-                self.inspector_ui(ui);
+                // Tab bar for right panel
+                ui.horizontal(|ui| {
+                    if ui
+                        .selectable_label(self.right_panel_tab == 0, "Inspector")
+                        .clicked()
+                    {
+                        self.right_panel_tab = 0;
+                    }
+                    if ui
+                        .selectable_label(self.right_panel_tab == 1, "Code")
+                        .clicked()
+                    {
+                        self.right_panel_tab = 1;
+                    }
+                });
                 ui.separator();
-                self.generated_panel(ui);
+
+                match self.right_panel_tab {
+                    0 => self.inspector_ui(ui),
+                    1 => self.generated_panel(ui),
+                    _ => {}
+                }
             });
 
         // Set edit mode for widget rendering (inverse of preview mode)
