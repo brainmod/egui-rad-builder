@@ -81,6 +81,28 @@ The official egui demo showcases best practices for widget organization and UX p
 
 ## Recent Changes (2025-12-27)
 
+### Phase 5 Research: egui_dock Integration
+Researched `egui_dock` v0.18 for potential modular window architecture:
+
+**egui_dock API Concepts:**
+- `DockState` - Central state management for tabs and dock layout
+- `DockArea` - Widget that renders docking interface with tab bars
+- Supports tab creation/closing, drag between nodes, resize, undock to windows
+- Compatible with egui 0.33 (current version in this project)
+
+**Potential Integration Points:**
+1. Replace current `egui::SidePanel` approach with `DockArea`
+2. Make Palette, Inspector, and Code Output dockable tabs
+3. Allow canvas to be resized/undocked
+4. Store `DockState` in project for layout persistence
+
+**Trade-offs:**
+- Pro: More flexible UI, user-customizable layout
+- Con: Adds dependency, increases complexity
+- Con: May require significant refactoring of `app.rs`
+
+**Decision:** Defer full integration until Phase 5 is prioritized. Current panel system works well for MVP.
+
 ### Phase 6 Feature: Live Preview Mode
 - **Preview mode toggle** - F5 or View menu to switch between Edit and Preview modes
 - **Toolbar indicator** - Color-coded Edit/Preview button shows current mode
@@ -516,12 +538,14 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 5. ~~Project scaffolding/skeleton generation~~ ✅ Cargo.toml generation in Separate Files mode
 6. **NEW:** Consider signals/slots pattern in generated code (Mobius `egui_mobius`) - *Planned*
 
-### Phase 5: Architecture Evolution *(Inspired by Mobius-ECS)*
+### Phase 5: Architecture Evolution *(Inspired by Mobius-ECS)* - RESEARCHED
 1. **Two-tier separation:** Core library (`egui-rad-widgets`) + Builder app
-2. `egui_dock` integration for modular window architecture
+2. `egui_dock` integration for modular window architecture *(researched - see Recent Changes)*
 3. Optional ECS-based widget management for complex projects
 4. Template system for declarative UI definitions
 5. Hot-reload support for live development
+
+**Status:** Research complete. `egui_dock` v0.18 is compatible. Implementation deferred - current panel system sufficient for core functionality.
 
 ### Phase 6: Advanced Features
 1. Multi-page/screen support with navigation
