@@ -1,4 +1,5 @@
 use crate::{
+    highlight::Highlighter,
     project::Project,
     widget::{self, DockArea, Widget, WidgetId, WidgetKind, escape, snap_pos_with_grid},
 };
@@ -34,6 +35,12 @@ pub(crate) struct RadBuilderApp {
     /// Drag selection box (start position when dragging to select)
     #[allow(dead_code)]
     drag_select_start: Option<Pos2>,
+    /// Syntax highlighter for code preview
+    highlighter: Highlighter,
+    /// Whether to show syntax highlighting (can be toggled for performance)
+    syntax_highlighting: bool,
+    /// Auto-generate code on widget changes
+    auto_generate: bool,
 }
 
 impl Default for RadBuilderApp {
@@ -56,6 +63,9 @@ impl Default for RadBuilderApp {
             current_file: None,
             status_message: None,
             drag_select_start: None,
+            highlighter: Highlighter::new(),
+            syntax_highlighting: true,
+            auto_generate: false,
         }
     }
 }
@@ -1500,6 +1510,8 @@ impl RadBuilderApp {
             ui.menu_button("View", |ui| {
                 ui.checkbox(&mut self.palette_open, "Show Palette");
                 ui.checkbox(&mut self.show_grid, "Show Grid");
+                ui.checkbox(&mut self.syntax_highlighting, "Syntax Highlighting")
+                    .on_hover_text("Enable syntax highlighting in code output");
             });
 
             ui.menu_button("Settings", |ui| {
@@ -1519,6 +1531,11 @@ impl RadBuilderApp {
                 ui.checkbox(&mut self.project.panel_bottom_enabled, "Bottom");
                 ui.checkbox(&mut self.project.panel_left_enabled, "Left");
                 ui.checkbox(&mut self.project.panel_right_enabled, "Right");
+                ui.separator();
+                ui.strong("Code Generation");
+                ui.add_space(4.0);
+                ui.checkbox(&mut self.auto_generate, "Auto-generate code")
+                    .on_hover_text("Automatically regenerate code when widgets change");
             });
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1730,7 +1747,15 @@ impl RadBuilderApp {
     }
 
     fn generated_panel(&mut self, ui: &mut egui::Ui) {
-        ui.heading("Generated Output");
+        ui.horizontal(|ui| {
+            ui.heading("Generated Output");
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.checkbox(&mut self.syntax_highlighting, "Syntax Highlighting")
+                    .on_hover_text(
+                        "Toggle syntax highlighting (may affect performance with large code)",
+                    );
+            });
+        });
         ui.label("Rust code (or JSON export) will appear here. Copy-paste into your app.");
 
         // A scrollable viewport for the generated text:
@@ -1739,13 +1764,19 @@ impl RadBuilderApp {
             .max_height(280.0)
             .auto_shrink([false, false])
             .show(ui, |ui| {
-                let editor = egui::TextEdit::multiline(&mut self.generated)
-                    .code_editor()
-                    .lock_focus(true)
-                    .desired_rows(18)
-                    .desired_width(f32::INFINITY); // fill available width
-
-                ui.add(editor);
+                if self.syntax_highlighting && !self.generated.is_empty() {
+                    // Display with syntax highlighting (read-only view)
+                    let job = self.highlighter.layout_job(&self.generated);
+                    ui.add(egui::Label::new(job).selectable(true));
+                } else {
+                    // Plain text editor (editable)
+                    let editor = egui::TextEdit::multiline(&mut self.generated)
+                        .code_editor()
+                        .lock_focus(true)
+                        .desired_rows(18)
+                        .desired_width(f32::INFINITY);
+                    ui.add(editor);
+                }
             });
     }
 
@@ -2702,6 +2733,11 @@ impl eframe::App for RadBuilderApp {
             });
 
         self.preview_panels_ui(ctx);
+
+        // Auto-generate code if enabled and widgets exist
+        if self.auto_generate && !self.project.widgets.is_empty() {
+            self.generated = self.generate_code();
+        }
 
         if self.spawning.is_some() {
             ctx.set_cursor_icon(egui::CursorIcon::Grabbing);

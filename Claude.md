@@ -81,6 +81,13 @@ The official egui demo showcases best practices for widget organization and UX p
 
 ## Recent Changes (2025-12-27)
 
+### Phase 4 Implementation (Code Generation)
+- **Syntax highlighting** - Added `syntect` crate for Rust code highlighting in code preview
+- **Highlighter module** - New `src/highlight.rs` with `Highlighter` struct and `layout_job()` method
+- **Auto-generate toggle** - Settings > Code Generation > "Auto-generate code" option
+- **View menu option** - Toggle syntax highlighting on/off for performance
+- **16 unit tests** - Added 3 highlighter tests (16 total)
+
 ### Phase 2 & 3 Implementation
 - **Multi-select support** - Changed selection from `Option<WidgetId>` to `Vec<WidgetId>` for multi-widget operations
 - **Shift+click selection** - Toggle selection by holding Shift while clicking widgets
@@ -93,7 +100,7 @@ The official egui demo showcases best practices for widget organization and UX p
 - **Status messages** - Auto-clearing status bar for user feedback
 - **Edit menu** - Added Delete, Duplicate, Copy, Paste, Select All, Deselect All
 - **Selection count** - Shows number of selected widgets in menu bar
-- **Code quality** - Fixed all Clippy warnings, added unit tests (13 total)
+- **Code quality** - Fixed all Clippy warnings
 
 ### Infrastructure
 - **WidgetId derives** - Added `PartialOrd` and `Ord` for comparison operations
@@ -486,13 +493,13 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 5. Group/ungroup widgets - *Deferred*
 6. ~~Grid snapping with visual guides~~ ✅ Grid display with configurable size
 
-### Phase 4: Code Generation *(Priority from Issue #15 + Mobius)*
-1. Real-time code generation while placing components
-2. Syntax highlighting in code preview (`syntect` - same as Mobius)
-3. Generate idiomatic Rust code
-4. Option to generate separate files (state.rs, ui.rs, main.rs)
-5. Project scaffolding/skeleton generation
-6. **NEW:** Consider signals/slots pattern in generated code (Mobius `egui_mobius`)
+### Phase 4: Code Generation *(Priority from Issue #15 + Mobius)* ✅ PARTIAL
+1. ~~Real-time code generation while placing components~~ ✅ Auto-generate toggle in Settings
+2. ~~Syntax highlighting in code preview (`syntect` - same as Mobius)~~ ✅ Toggle in View menu
+3. Generate idiomatic Rust code - *In progress*
+4. Option to generate separate files (state.rs, ui.rs, main.rs) - *Planned*
+5. Project scaffolding/skeleton generation - *Planned*
+6. **NEW:** Consider signals/slots pattern in generated code (Mobius `egui_mobius`) - *Planned*
 
 ### Phase 5: Architecture Evolution *(Inspired by Mobius-ECS)*
 1. **Two-tier separation:** Core library (`egui-rad-widgets`) + Builder app
@@ -526,7 +533,7 @@ Leverage `egui_dock` as an application template layer where generated RAD window
 | **Code Generation** | ✅ Complete apps | ✅ Complete apps | Both generate production-ready code |
 | **Visual Alignment** | ✅ Align, distribute, match sizes | ✅ Full alignment tools | Feature parity achieved |
 | **Docking System** | Panel-based | egui_dock | Consider egui_dock integration |
-| **Syntax Highlighting** | ❌ Plain text | ✅ syntect | Add syntect for code preview |
+| **Syntax Highlighting** | ✅ syntect | ✅ syntect | Feature parity achieved |
 | **Hot Reload** | ❌ | ✅ | Future consideration |
 | **Signals/Slots** | ❌ | ✅ egui_mobius | Event communication pattern |
 | **Template System** | ❌ | ✅ Declarative | Future phase |
